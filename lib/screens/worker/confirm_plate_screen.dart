@@ -151,10 +151,10 @@ class _ConfirmPlateScreenState extends ConsumerState<ConfirmPlateScreen> {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: WashTheme.warning.withOpacity(0.1),
+                    color: WashTheme.warning.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(
-                        color: WashTheme.warning.withOpacity(0.5)),
+                        color: WashTheme.warning.withValues(alpha: 0.5)),
                   ),
                   child: const Row(
                     children: [
@@ -195,9 +195,9 @@ class _CustomerBanner extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: WashTheme.success.withOpacity(0.08),
+        color: WashTheme.success.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: WashTheme.success.withOpacity(0.4)),
+        border: Border.all(color: WashTheme.success.withValues(alpha: 0.4)),
       ),
       child: Row(
         children: [
@@ -205,7 +205,7 @@ class _CustomerBanner extends StatelessWidget {
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: WashTheme.success.withOpacity(0.15),
+              color: WashTheme.success.withValues(alpha: 0.15),
               shape: BoxShape.circle,
             ),
             child: const Icon(Icons.repeat, color: WashTheme.success, size: 20),

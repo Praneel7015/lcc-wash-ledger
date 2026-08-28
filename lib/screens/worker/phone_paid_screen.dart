@@ -1,8 +1,6 @@
 // Screen 5: phone number + paid toggle + save.
 // Phone pre-fills if returning customer. Saves visit to Firestore + uploads photos.
 
-import 'dart:typed_data';
-
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -209,13 +207,13 @@ class _PhonePaidScreenState extends ConsumerState<PhonePaidScreen> {
                       horizontal: 24, vertical: 20),
                   decoration: BoxDecoration(
                     color: _paid
-                        ? WashTheme.success.withOpacity(0.1)
-                        : WashTheme.danger.withOpacity(0.1),
+                        ? WashTheme.success.withValues(alpha: 0.1)
+                        : WashTheme.danger.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(
                       color: _paid
-                          ? WashTheme.success.withOpacity(0.5)
-                          : WashTheme.danger.withOpacity(0.5),
+                          ? WashTheme.success.withValues(alpha: 0.5)
+                          : WashTheme.danger.withValues(alpha: 0.5),
                       width: 2,
                     ),
                   ),
@@ -236,9 +234,9 @@ class _PhonePaidScreenState extends ConsumerState<PhonePaidScreen> {
                         ),
                       ),
                       const Spacer(),
-                      Text(
+                      const Text(
                         'Tap to toggle',
-                        style: const TextStyle(
+                        style: TextStyle(
                             color: WashTheme.textSecondary, fontSize: 13),
                       ),
                     ],

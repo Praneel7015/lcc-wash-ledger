@@ -1,5 +1,4 @@
-// go_router configuration. Routes to worker flow or owner dashboard
-// depending on Firebase Auth.
+// go_router configuration. Routes to worker flow or owner dashboard.
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -11,7 +10,6 @@ import '../screens/auth/login_screen.dart';
 import '../screens/owner/dashboard_screen.dart';
 import '../screens/owner/rates_screen.dart';
 import '../screens/owner/reports_screen.dart';
-import '../screens/owner/settings_screen.dart';
 import '../screens/owner/visit_detail_screen.dart';
 import '../screens/worker/capture_front_screen.dart';
 import '../screens/worker/capture_plate_screen.dart';
@@ -27,13 +25,8 @@ final routerProvider = Provider<GoRouter>((ref) {
     redirect: (context, state) {
       final user = authState.valueOrNull;
       final isLoggingIn = state.matchedLocation == '/login';
-
-      if (user == null) {
-        return isLoggingIn ? null : '/login';
-      }
-      if (isLoggingIn) {
-        return kIsWeb ? '/owner' : '/worker/capture-plate';
-      }
+      if (user == null) return isLoggingIn ? null : '/login';
+      if (isLoggingIn) return kIsWeb ? '/owner' : '/worker/capture-plate';
       return null;
     },
     routes: [
@@ -42,7 +35,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const LoginScreen(),
       ),
 
-      // ── Worker flow (Android) ─────────────────────────────────────────
+      // ── Worker flow (Android) ──────────────────────────────────────
       GoRoute(
         path: '/worker/capture-plate',
         builder: (context, state) => const CapturePlateScreen(),
@@ -86,7 +79,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         },
       ),
 
-      // ── Owner dashboard (Web + Android) ───────────────────────────────
+      // ── Owner dashboard (Web + Android) ───────────────────────────
       GoRoute(
         path: '/owner',
         builder: (context, state) => const DashboardScreen(),
@@ -98,10 +91,6 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: 'rates',
             builder: (context, state) => const RatesScreen(),
-          ),
-          GoRoute(
-            path: 'settings',
-            builder: (context, state) => const OwnerSettingsScreen(),
           ),
           GoRoute(
             path: 'visit/:visitId',

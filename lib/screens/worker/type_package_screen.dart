@@ -127,7 +127,7 @@ class _TypePackageScreenState extends ConsumerState<TypePackageScreen> {
                   decoration: BoxDecoration(
                     color: WashTheme.surface,
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: WashTheme.accent.withOpacity(0.4)),
+                    border: Border.all(color: WashTheme.accent.withValues(alpha: 0.4)),
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -182,7 +182,7 @@ class _VehicleTypeButton extends StatelessWidget {
         duration: const Duration(milliseconds: 150),
         padding: const EdgeInsets.symmetric(vertical: 16),
         decoration: BoxDecoration(
-          color: selected ? WashTheme.accent.withOpacity(0.12) : WashTheme.surface,
+          color: selected ? WashTheme.accent.withValues(alpha: 0.12) : WashTheme.surface,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: selected ? WashTheme.accent : WashTheme.border,
@@ -230,7 +230,7 @@ class _PackageButton extends StatelessWidget {
         duration: const Duration(milliseconds: 150),
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
         decoration: BoxDecoration(
-          color: selected ? WashTheme.accent.withOpacity(0.1) : WashTheme.surface,
+          color: selected ? WashTheme.accent.withValues(alpha: 0.1) : WashTheme.surface,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: selected ? WashTheme.accent : WashTheme.border,

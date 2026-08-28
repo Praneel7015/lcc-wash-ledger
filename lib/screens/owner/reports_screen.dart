@@ -261,7 +261,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                       const SizedBox(height: 16),
 
                       // By vehicle type
-                      _SectionHeader('By vehicle type'),
+                      const _SectionHeader('By vehicle type'),
                       ...VehicleType.all.map((type) {
                         final count = countByType[type] ?? 0;
                         final rev = revenueByType[type] ?? 0;
@@ -276,7 +276,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                       const SizedBox(height: 16),
 
                       // By package
-                      _SectionHeader('By package'),
+                      const _SectionHeader('By package'),
                       ...WashPackage.all.map((pkg) {
                         final count = countByPkg[pkg] ?? 0;
                         return _BreakdownTile(
@@ -311,7 +311,7 @@ class _RangeChip extends StatelessWidget {
           padding: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(
             color: selected
-                ? WashTheme.accent.withOpacity(0.15)
+                ? WashTheme.accent.withValues(alpha: 0.15)
                 : WashTheme.surface,
             borderRadius: BorderRadius.circular(10),
             border: Border.all(

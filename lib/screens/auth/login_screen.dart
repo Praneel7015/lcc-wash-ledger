@@ -4,7 +4,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/theme.dart';
@@ -128,9 +127,9 @@ class _LoginScreenState extends State<LoginScreen> {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: WashTheme.danger.withOpacity(0.1),
+                    color: WashTheme.danger.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: WashTheme.danger.withOpacity(0.4)),
+                    border: Border.all(color: WashTheme.danger.withValues(alpha: 0.4)),
                   ),
                   child: Text(
                     _error!,

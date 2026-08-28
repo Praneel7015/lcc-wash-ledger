@@ -107,8 +107,8 @@ class _VisitDetail extends StatelessWidget {
                         horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
                       color: visit.paid
-                          ? WashTheme.success.withOpacity(0.15)
-                          : WashTheme.danger.withOpacity(0.15),
+                          ? WashTheme.success.withValues(alpha: 0.15)
+                          : WashTheme.danger.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Text(

@@ -105,10 +105,10 @@ class _RatesScreenState extends ConsumerState<RatesScreen> {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: WashTheme.accent.withOpacity(0.08),
+                    color: WashTheme.accent.withValues(alpha: 0.08),
                     borderRadius: BorderRadius.circular(10),
                     border: Border.all(
-                        color: WashTheme.accent.withOpacity(0.3)),
+                        color: WashTheme.accent.withValues(alpha: 0.3)),
                   ),
                   child: const Text(
                     'Changes take effect immediately for new washes.',

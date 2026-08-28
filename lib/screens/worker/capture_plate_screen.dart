@@ -137,7 +137,7 @@ class _PlateGuide extends StatelessWidget {
       width: 140,
       height: 32,
       decoration: BoxDecoration(
-        color: WashTheme.accent.withOpacity(0.15),
+        color: WashTheme.accent.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(4),
         border: Border.all(color: WashTheme.accent, width: 2),
       ),
