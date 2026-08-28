@@ -1,0 +1,13 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Workers can upload photos for visits they created
+    match /visits/{visitId}/{photo} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null
+        && resource == null   // new upload only
+        && request.resource.size < 5 * 1024 * 1024  // 5 MB max
+        && request.resource.contentType.matches('image/.*');
+    }
+  }
+}

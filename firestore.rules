@@ -1,0 +1,51 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helpers
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner() {
+      return isSignedIn() &&
+        get(/databases/$(database)/documents/workers/$(request.auth.uid)).data.isOwner == true;
+    }
+
+    // Workers can read their own record
+    match /workers/{uid} {
+      allow read: if request.auth.uid == uid;
+      allow write: if isOwner();
+    }
+
+    // Any signed-in user can create visits; owner can update/delete
+    match /visits/{id} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update, delete: if isOwner();
+    }
+
+    // Any signed-in user can read/write customers (upsert on save)
+    match /customers/{id} {
+      allow read, write: if isSignedIn();
+    }
+
+    // Rates: workers read, owner writes
+    match /rates/{id} {
+      allow read: if isSignedIn();
+      allow write: if isOwner();
+    }
+
+    // Settings: owner only
+    match /settings/{id} {
+      allow read, write: if isOwner();
+    }
+
+    // Close-day trigger: any signed-in user can create; functions delete
+    match /emailTasks/{id} {
+      allow create: if isSignedIn();
+      allow read: if isOwner();
+      allow delete: if false; // Only Cloud Functions delete
+    }
+  }
+}
