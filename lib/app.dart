@@ -13,7 +13,7 @@ class WashLogApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(routerProvider);
     return MaterialApp.router(
-      title: 'WashLog',
+      title: 'Luxury Car Care',
       debugShowCheckedModeBanner: false,
       theme: WashTheme.dark(),
       routerConfig: router,

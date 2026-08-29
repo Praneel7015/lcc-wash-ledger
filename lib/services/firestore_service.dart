@@ -144,6 +144,54 @@ class FirestoreService {
         .set(fields, SetOptions(merge: true));
   }
 
+  // ── Packages ─────────────────────────────────────────────────────────
+
+  Future<List<Map<String, dynamic>>> loadPackages() async {
+    final snap = await _db
+        .collection('packages')
+        .orderBy('order')
+        .get();
+    return snap.docs.map((doc) {
+      final data = doc.data();
+      return {
+        'id': doc.id,
+        'label': data['label'] ?? doc.id,
+        'description': data['description'] ?? '',
+        'vehicleTypes': List<String>.from(data['vehicleTypes'] ?? []),
+        'order': (data['order'] as num?)?.toInt() ?? 0,
+      };
+    }).toList();
+  }
+
+  Future<void> savePackage(
+    String id,
+    String label,
+    String description,
+    List<String> vehicleTypes,
+    int order,
+  ) {
+    return _db.collection('packages').doc(id).set({
+      'label': label,
+      'description': description,
+      'vehicleTypes': vehicleTypes,
+      'order': order,
+    });
+  }
+
+  Future<void> deletePackage(String id) async {
+    final batch = _db.batch();
+    batch.delete(_db.collection('packages').doc(id));
+    // Delete all rate docs for this packageId
+    final rateSnap = await _db
+        .collection('rates')
+        .where('packageId', isEqualTo: id)
+        .get();
+    for (final doc in rateSnap.docs) {
+      batch.delete(doc.reference);
+    }
+    await batch.commit();
+  }
+
   // ── Close-day trigger ────────────────────────────────────────────────
 
   Future<void> triggerCloseDayEmail() async {

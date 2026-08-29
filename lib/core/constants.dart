@@ -42,21 +42,26 @@ class WashPackage {
   static const String detailing = 'detailing';   // Full Detailing
   static const String bikeWash = 'bike_wash';    // Express Bike Wash (bike only)
 
-  // All packages available for cars (hatch/sedan + SUV)
+  // Deprecated: packages are now stored in Firestore `packages` collection.
+  // These are kept only as fallback constants for the seed script.
+  @Deprecated('Load packages from Firestore via packagesProvider instead.')
   static const List<String> car = [exterior, full, underbody, detailing];
 
-  // Bike gets its own single package
+  @Deprecated('Load packages from Firestore via packagesProvider instead.')
   static const List<String> bikeOnly = [bikeWash];
 
-  // Full list used for rates seeding only
+  // Full list kept for rates seeding only — do not use in UI.
   static const List<String> all = [exterior, full, underbody, detailing, bikeWash];
 
-  /// Returns the packages relevant for a given vehicle type.
+  /// Deprecated: filter packages from Firestore by vehicleType client-side.
+  @Deprecated('Load packages from Firestore via packagesProvider instead.')
   static List<String> forVehicle(String vehicleType) {
     if (vehicleType == VehicleType.bike) return bikeOnly;
+    // ignore: deprecated_member_use_from_same_package
     return car;
   }
 
+  /// Fallback label — prefer the `label` field from the Firestore package doc.
   static String label(String pkg) {
     switch (pkg) {
       case exterior:
@@ -74,6 +79,7 @@ class WashPackage {
     }
   }
 
+  /// Fallback description — prefer the `description` field from Firestore.
   static String description(String pkg) {
     switch (pkg) {
       case exterior:

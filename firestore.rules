@@ -44,5 +44,11 @@ service cloud.firestore {
       allow read: if isOwner();
       allow delete: if false;
     }
+
+    // Packages — workers read (to show package picker), owner can edit
+    match /packages/{id} {
+      allow read: if isSignedIn();
+      allow write: if isOwner();
+    }
   }
 }

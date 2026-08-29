@@ -1,5 +1,5 @@
-// One-shot: wipe old rates and write correct ones.
-// Run: node seed-rates.js
+// One-shot: wipe old rates and packages, then write correct ones.
+// Run: node seed-rates.js  (from functions/ directory)
 
 const { initializeApp, cert } = require('firebase-admin/app');
 const { getFirestore } = require('firebase-admin/firestore');
@@ -20,15 +20,60 @@ const rates = {
   'bike__bike_wash':        { vehicleType: 'bike',        packageId: 'bike_wash',  amountRupees: 64   },
 };
 
+const packages = {
+  'exterior': {
+    label: 'Express Exterior Wash',
+    description: "A fast rinse and shine when you're short on time.",
+    vehicleTypes: ['hatch_sedan', 'suv'],
+    order: 1,
+  },
+  'full': {
+    label: 'Exterior + Interior Wash',
+    description: 'Full clean, inside and out.',
+    vehicleTypes: ['hatch_sedan', 'suv'],
+    order: 2,
+  },
+  'underbody': {
+    label: 'Exterior + Interior + Under Body',
+    description: 'Full clean + vacuum, under body wash & tyre polish.',
+    vehicleTypes: ['hatch_sedan', 'suv'],
+    order: 3,
+  },
+  'detailing': {
+    label: 'Full Detailing',
+    description: 'Deep clean, shampoo, wax, tyre shine — like new.',
+    vehicleTypes: ['hatch_sedan', 'suv'],
+    order: 4,
+  },
+  'bike_wash': {
+    label: 'Express Bike Wash',
+    description: 'Quick exterior rinse and shine for two-wheelers.',
+    vehicleTypes: ['bike'],
+    order: 1,
+  },
+};
+
 async function run() {
-  const snap = await db.collection('rates').get();
-  const batch = db.batch();
-  snap.docs.forEach(d => batch.delete(d.ref));
+  // ── Rates ────────────────────────────────────────────────────────────
+  const rateSnap = await db.collection('rates').get();
+  const rateBatch = db.batch();
+  rateSnap.docs.forEach(d => rateBatch.delete(d.ref));
   Object.entries(rates).forEach(([key, val]) => {
-    batch.set(db.collection('rates').doc(key), val);
+    rateBatch.set(db.collection('rates').doc(key), val);
   });
-  await batch.commit();
-  console.log(`✓ Done — ${Object.keys(rates).length} rates written to Firestore`);
+  await rateBatch.commit();
+  console.log(`✓ Rates — ${Object.keys(rates).length} docs written`);
+
+  // ── Packages ─────────────────────────────────────────────────────────
+  const pkgSnap = await db.collection('packages').get();
+  const pkgBatch = db.batch();
+  pkgSnap.docs.forEach(d => pkgBatch.delete(d.ref));
+  Object.entries(packages).forEach(([id, data]) => {
+    pkgBatch.set(db.collection('packages').doc(id), data);
+  });
+  await pkgBatch.commit();
+  console.log(`✓ Packages — ${Object.keys(packages).length} docs written`);
+
   process.exit(0);
 }
 

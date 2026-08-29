@@ -1,4 +1,5 @@
 // Screen 4: vehicle type (3 big buttons) + package picker.
+// Packages loaded from Firestore via packagesProvider, filtered client-side.
 // Amount auto-fills from the rate table.
 
 import 'dart:typed_data';
@@ -10,6 +11,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/constants.dart';
 import '../../core/theme.dart';
 import '../../models/wash_draft.dart';
+import '../../providers/packages_provider.dart';
 import '../../providers/rates_provider.dart';
 import '../../widgets/worker_app_bar.dart';
 
@@ -55,6 +57,8 @@ class _TypePackageScreenState extends ConsumerState<TypePackageScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final packagesAsync = ref.watch(packagesProvider);
+
     return Scaffold(
       appBar: WorkerAppBar(
           title: 'Vehicle type & wash', subtitle: widget.plate),
@@ -114,22 +118,60 @@ class _TypePackageScreenState extends ConsumerState<TypePackageScreen> {
                   ),
                 )
               else
-                ...WashPackage.forVehicle(_vehicleType!).map((pkg) {
-                  final selected = _packageId == pkg;
-                  final amount = ref.watch(selectedAmountProvider(
-                    (vehicleType: _vehicleType!, packageId: pkg),
-                  ));
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 10),
-                    child: _PackageButton(
-                      label: WashPackage.label(pkg),
-                      description: WashPackage.description(pkg),
-                      amount: amount,
-                      selected: selected,
-                      onTap: () => setState(() => _packageId = pkg),
+                packagesAsync.when(
+                  loading: () => const Center(
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(vertical: 24),
+                      child: CircularProgressIndicator(
+                          color: WashTheme.accent),
                     ),
-                  );
-                }),
+                  ),
+                  error: (e, _) => const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 12),
+                    child: Text(
+                      'Failed to load packages. Please try again.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: WashTheme.danger),
+                    ),
+                  ),
+                  data: (packages) {
+                    final filtered = packages
+                        .where((p) => (p['vehicleTypes'] as List<dynamic>)
+                            .contains(_vehicleType))
+                        .toList();
+                    if (filtered.isEmpty) {
+                      return const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 12),
+                        child: Text(
+                          'No packages available for this vehicle type.',
+                          textAlign: TextAlign.center,
+                          style:
+                              TextStyle(color: WashTheme.textSecondary),
+                        ),
+                      );
+                    }
+                    return Column(
+                      children: filtered.map((pkg) {
+                        final pkgId = pkg['id'] as String;
+                        final selected = _packageId == pkgId;
+                        final amount = ref.watch(selectedAmountProvider(
+                          (vehicleType: _vehicleType!, packageId: pkgId),
+                        ));
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 10),
+                          child: _PackageButton(
+                            label: pkg['label'] as String,
+                            description: pkg['description'] as String,
+                            amount: amount,
+                            selected: selected,
+                            onTap: () =>
+                                setState(() => _packageId = pkgId),
+                          ),
+                        );
+                      }).toList(),
+                    );
+                  },
+                ),
 
               const SizedBox(height: 24),
 
@@ -140,7 +182,8 @@ class _TypePackageScreenState extends ConsumerState<TypePackageScreen> {
                   decoration: BoxDecoration(
                     color: WashTheme.surface,
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: WashTheme.accent.withValues(alpha: 0.4)),
+                    border: Border.all(
+                        color: WashTheme.accent.withValues(alpha: 0.4)),
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -195,7 +238,9 @@ class _VehicleTypeButton extends StatelessWidget {
         duration: const Duration(milliseconds: 150),
         padding: const EdgeInsets.symmetric(vertical: 16),
         decoration: BoxDecoration(
-          color: selected ? WashTheme.accent.withValues(alpha: 0.12) : WashTheme.surface,
+          color: selected
+              ? WashTheme.accent.withValues(alpha: 0.12)
+              : WashTheme.surface,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: selected ? WashTheme.accent : WashTheme.border,
@@ -245,7 +290,9 @@ class _PackageButton extends StatelessWidget {
         duration: const Duration(milliseconds: 150),
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         decoration: BoxDecoration(
-          color: selected ? WashTheme.accent.withValues(alpha: 0.1) : WashTheme.surface,
+          color: selected
+              ? WashTheme.accent.withValues(alpha: 0.1)
+              : WashTheme.surface,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: selected ? WashTheme.accent : WashTheme.border,

@@ -142,17 +142,23 @@ function buildEmailHtml(summary: DaySummary, dateLabel: string): string {
         </div>` : ""}
       </div>
 
+      <!-- By package (shown first) -->
+      <div style="font-size:11px;color:#9C9489;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:8px;">By Package</div>
+      <table style="width:100%;border-collapse:collapse;background:#0F0E0D;border-radius:8px;margin-bottom:20px;border:1px solid #2A2420;">
+        ${pkgRows || "<tr><td colspan='2' style='padding:12px 14px;color:#5C5751;'>No data</td></tr>"}
+      </table>
+
       <!-- By vehicle type -->
       <div style="font-size:11px;color:#9C9489;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:8px;">By Vehicle Type</div>
       <table style="width:100%;border-collapse:collapse;background:#0F0E0D;border-radius:8px;margin-bottom:20px;border:1px solid #2A2420;">
         ${typeRows || "<tr><td colspan='2' style='padding:12px 14px;color:#5C5751;'>No data</td></tr>"}
       </table>
 
-      <!-- By package -->
-      <div style="font-size:11px;color:#9C9489;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:8px;">By Package</div>
-      <table style="width:100%;border-collapse:collapse;background:#0F0E0D;border-radius:8px;margin-bottom:24px;border:1px solid #2A2420;">
-        ${pkgRows || "<tr><td colspan='2' style='padding:12px 14px;color:#5C5751;'>No data</td></tr>"}
-      </table>
+      <!-- Dashboard CTA -->
+      <div style="margin-bottom:24px;text-align:center;">
+        <a href="https://wash.sindhole.com" style="display:inline-block;padding:12px 28px;background:#C9952A;color:#0F0E0D;font-weight:700;font-size:13px;letter-spacing:0.5px;border-radius:8px;text-decoration:none;">View Full Dashboard →</a>
+        <div style="margin-top:8px;font-size:11px;color:#5C5751;">wash.sindhole.com</div>
+      </div>
     </div>
 
     <!-- Footer -->

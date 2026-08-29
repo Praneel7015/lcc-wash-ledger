@@ -3,8 +3,10 @@
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/theme.dart';
 
@@ -325,6 +327,41 @@ class _LoginScreenState extends State<LoginScreen> {
                               ),
                             ),
                           ),
+                          if (kIsWeb) ...[
+                            const SizedBox(height: 12),
+                            Center(
+                              child: RichText(
+                                text: TextSpan(
+                                  style: TextStyle(
+                                    color: WashTheme.textMuted
+                                        .withValues(alpha: 0.6),
+                                    fontSize: 11,
+                                  ),
+                                  children: [
+                                    const TextSpan(text: 'Made by '),
+                                    TextSpan(
+                                      text: 'Praneel S',
+                                      style: TextStyle(
+                                        color: WashTheme.accent
+                                            .withValues(alpha: 0.85),
+                                        fontWeight: FontWeight.w600,
+                                        decoration: TextDecoration.underline,
+                                        decorationColor: WashTheme.accent
+                                            .withValues(alpha: 0.5),
+                                      ),
+                                      recognizer: TapGestureRecognizer()
+                                        ..onTap = () => launchUrl(
+                                              Uri.parse(
+                                                  'https://praneel.sindhole.com/contact'),
+                                              mode: LaunchMode
+                                                  .externalApplication,
+                                            ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
                         ],
                       ),
                     ),
