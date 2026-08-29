@@ -88,7 +88,11 @@ class _TypePackageScreenState extends ConsumerState<TypePackageScreen> {
                         label: VehicleType.label(type),
                         emoji: VehicleType.emoji(type),
                         selected: selected,
-                        onTap: () => setState(() => _vehicleType = type),
+                        onTap: () => setState(() {
+                          _vehicleType = type;
+                          // Reset package when switching vehicle type
+                          _packageId = null;
+                        }),
                       ),
                     ),
                   );
@@ -100,23 +104,32 @@ class _TypePackageScreenState extends ConsumerState<TypePackageScreen> {
                   style: Theme.of(context).textTheme.titleLarge),
               const SizedBox(height: 12),
 
-              ...WashPackage.all.map((pkg) {
-                final selected = _packageId == pkg;
-                final amount = _vehicleType != null
-                    ? ref.watch(selectedAmountProvider(
-                        (vehicleType: _vehicleType!, packageId: pkg),
-                      ))
-                    : 0;
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: _PackageButton(
-                    label: WashPackage.label(pkg),
-                    amount: amount,
-                    selected: selected,
-                    onTap: () => setState(() => _packageId = pkg),
+              if (_vehicleType == null)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 12),
+                  child: Text(
+                    'Select a vehicle type above to see available packages.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: WashTheme.textSecondary),
                   ),
-                );
-              }),
+                )
+              else
+                ...WashPackage.forVehicle(_vehicleType!).map((pkg) {
+                  final selected = _packageId == pkg;
+                  final amount = ref.watch(selectedAmountProvider(
+                    (vehicleType: _vehicleType!, packageId: pkg),
+                  ));
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: _PackageButton(
+                      label: WashPackage.label(pkg),
+                      description: WashPackage.description(pkg),
+                      amount: amount,
+                      selected: selected,
+                      onTap: () => setState(() => _packageId = pkg),
+                    ),
+                  );
+                }),
 
               const SizedBox(height: 24),
 
@@ -211,12 +224,14 @@ class _VehicleTypeButton extends StatelessWidget {
 
 class _PackageButton extends StatelessWidget {
   final String label;
+  final String description;
   final int amount;
   final bool selected;
   final VoidCallback onTap;
 
   const _PackageButton({
     required this.label,
+    required this.description,
     required this.amount,
     required this.selected,
     required this.onTap,
@@ -228,7 +243,7 @@ class _PackageButton extends StatelessWidget {
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 150),
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         decoration: BoxDecoration(
           color: selected ? WashTheme.accent.withValues(alpha: 0.1) : WashTheme.surface,
           borderRadius: BorderRadius.circular(16),
@@ -244,24 +259,42 @@ class _PackageButton extends StatelessWidget {
               color: selected ? WashTheme.accent : WashTheme.textSecondary,
               size: 22,
             ),
-            const SizedBox(width: 16),
+            const SizedBox(width: 14),
             Expanded(
-              child: Text(
-                label,
-                style: TextStyle(
-                  color: selected ? WashTheme.accent : WashTheme.textPrimary,
-                  fontSize: 17,
-                  fontWeight: FontWeight.w600,
-                ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: TextStyle(
+                      color: selected ? WashTheme.accent : WashTheme.textPrimary,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  if (description.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 2),
+                      child: Text(
+                        description,
+                        style: const TextStyle(
+                          color: WashTheme.textSecondary,
+                          fontSize: 12,
+                          height: 1.3,
+                        ),
+                      ),
+                    ),
+                ],
               ),
             ),
+            const SizedBox(width: 12),
             if (amount > 0)
               Text(
                 '₹$amount',
                 style: TextStyle(
                   color: selected ? WashTheme.accent : WashTheme.textSecondary,
                   fontSize: 17,
-                  fontWeight: FontWeight.w700,
+                  fontWeight: FontWeight.w800,
                 ),
               ),
           ],

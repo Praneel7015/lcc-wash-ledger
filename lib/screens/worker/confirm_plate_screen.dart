@@ -50,15 +50,19 @@ class _ConfirmPlateScreenState extends ConsumerState<ConfirmPlateScreen> {
     final plate = normalisePlate(raw);
     if (plate.isEmpty) return;
     setState(() => _loadingCustomer = true);
-    final svc = ref.read(firestoreServiceProvider);
-    final customer = await svc.getCustomer(plate);
-    final alreadyToday = await svc.wasLoggedToday(plate);
-    if (mounted) {
-      setState(() {
-        _customer = customer;
-        _alreadyToday = alreadyToday;
-        _loadingCustomer = false;
-      });
+    try {
+      final svc = ref.read(firestoreServiceProvider);
+      final customer = await svc.getCustomer(plate);
+      final alreadyToday = await svc.wasLoggedToday(plate);
+      if (mounted) {
+        setState(() {
+          _customer = customer;
+          _alreadyToday = alreadyToday;
+          _loadingCustomer = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _loadingCustomer = false);
     }
   }
 

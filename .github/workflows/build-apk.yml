@@ -1,0 +1,62 @@
+name: Build & Release Android APK
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build-and-release:
+    name: Build APK & Create GitHub Release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Extract version from tag
+        id: version
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          VERSION="${TAG#v}"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Patch pubspec.yaml version
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          # Preserve the build number (+1) if version has no build number
+          if [[ "$VERSION" != *"+"* ]]; then
+            BUILD_NUMBER=$(grep '^version:' pubspec.yaml | sed 's/.*+//')
+            VERSION="${VERSION}+${BUILD_NUMBER}"
+          fi
+          sed -i "s/^version: .*/version: ${VERSION}/" pubspec.yaml
+          echo "Updated pubspec.yaml version to: ${VERSION}"
+          grep '^version:' pubspec.yaml
+
+      - name: Setup Java (JDK 17, Temurin)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Setup Flutter (stable)
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build release APK
+        run: flutter build apk --release
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "Luxury Car Care v${{ steps.version.outputs.version }}"
+          generate_release_notes: true
+          files: build/app/outputs/flutter-apk/app-release.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

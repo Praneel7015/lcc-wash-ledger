@@ -30,25 +30,29 @@ class FirestoreService {
     final end = start.add(const Duration(days: 1));
     return _db
         .collection('visits')
-        .where('voided', isNotEqualTo: true)
         .where('createdAt',
             isGreaterThanOrEqualTo: Timestamp.fromDate(start),
             isLessThan: Timestamp.fromDate(end))
         .orderBy('createdAt', descending: true)
         .snapshots()
-        .map((s) => s.docs.map(Visit.fromFirestore).toList());
+        .map((s) => s.docs
+            .map(Visit.fromFirestore)
+            .where((v) => !v.voided)
+            .toList());
   }
 
   Future<List<Visit>> visitsForRange(DateTime from, DateTime to) async {
     final snap = await _db
         .collection('visits')
-        .where('voided', isNotEqualTo: true)
         .where('createdAt',
             isGreaterThanOrEqualTo: Timestamp.fromDate(from),
             isLessThan: Timestamp.fromDate(to.add(const Duration(days: 1))))
         .orderBy('createdAt', descending: true)
         .get();
-    return snap.docs.map(Visit.fromFirestore).toList();
+    return snap.docs
+        .map(Visit.fromFirestore)
+        .where((v) => !v.voided)
+        .toList();
   }
 
   Future<Visit?> getVisit(String id) async {
@@ -64,13 +68,11 @@ class FirestoreService {
     final snap = await _db
         .collection('visits')
         .where('plate', isEqualTo: plate)
-        .where('voided', isNotEqualTo: true)
         .where('createdAt',
             isGreaterThanOrEqualTo: Timestamp.fromDate(start),
             isLessThan: Timestamp.fromDate(end))
-        .limit(1)
         .get();
-    return snap.docs.isNotEmpty;
+    return snap.docs.map(Visit.fromFirestore).any((v) => !v.voided);
   }
 
   // ── Customers ───────────────────────────────────────────────────────

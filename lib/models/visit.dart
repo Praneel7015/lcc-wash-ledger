@@ -10,6 +10,7 @@ class Visit {
   final String packageId;
   final int amount;
   final bool paid;
+  final bool voided;
   final String? workerId;
   final DateTime createdAt;
   final String? platePhotoUrl;
@@ -23,6 +24,7 @@ class Visit {
     required this.packageId,
     required this.amount,
     required this.paid,
+    this.voided = false,
     this.workerId,
     required this.createdAt,
     this.platePhotoUrl,
@@ -39,6 +41,7 @@ class Visit {
       packageId: d['packageId'] as String,
       amount: (d['amount'] as num).toInt(),
       paid: d['paid'] as bool? ?? false,
+      voided: d['voided'] as bool? ?? false,
       workerId: d['workerId'] as String?,
       createdAt: (d['createdAt'] as Timestamp).toDate(),
       platePhotoUrl: d['platePhotoUrl'] as String?,
@@ -53,6 +56,7 @@ class Visit {
         'packageId': packageId,
         'amount': amount,
         'paid': paid,
+        'voided': voided,
         'workerId': workerId,
         'createdAt': Timestamp.fromDate(createdAt),
         'platePhotoUrl': platePhotoUrl,

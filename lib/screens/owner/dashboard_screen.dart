@@ -1,6 +1,8 @@
 // Owner dashboard — today strip (count, mix, cash) + live visit table.
+// Optimized for desktop/web and responsive mobile layouts.
 
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -11,11 +13,18 @@ import '../../core/theme.dart';
 import '../../models/visit.dart';
 import '../../services/providers.dart';
 
-class DashboardScreen extends ConsumerWidget {
+class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<DashboardScreen> createState() => _DashboardScreenState();
+}
+
+class _DashboardScreenState extends ConsumerState<DashboardScreen> {
+  String _searchQuery = '';
+
+  @override
+  Widget build(BuildContext context) {
     final svc = ref.watch(firestoreServiceProvider);
     final today = DateTime.now();
     final todayStream = svc.visitsForDay(today);
@@ -23,198 +32,496 @@ class DashboardScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: WashTheme.bg,
       appBar: AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('WashLog'),
-            Text(
-              DateFormat('EEEE, d MMM').format(today),
-              style: const TextStyle(
-                  fontSize: 13,
-                  color: WashTheme.textSecondary,
-                  fontWeight: FontWeight.w400),
+        toolbarHeight: 70,
+        title: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 1080),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: WashTheme.accent.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(
+                    Icons.local_car_wash_rounded,
+                    color: WashTheme.accent,
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      children: [
+                        const Text(
+                          'LUXURY ',
+                          style: TextStyle(
+                            color: WashTheme.textPrimary,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 1.0,
+                          ),
+                        ),
+                        Text(
+                          'CAR CARE',
+                          style: TextStyle(
+                            color: WashTheme.accent,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 1.0,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: WashTheme.success.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(4),
+                            border: Border.all(
+                                color: WashTheme.success.withValues(alpha: 0.3)),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              CircleAvatar(
+                                radius: 3,
+                                backgroundColor: WashTheme.success,
+                              ),
+                              SizedBox(width: 4),
+                              Text(
+                                'LIVE',
+                                style: TextStyle(
+                                  color: WashTheme.success,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    Text(
+                      DateFormat('EEEE, d MMMM yyyy').format(today),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: WashTheme.textSecondary,
+                        fontWeight: FontWeight.w400,
+                      ),
+                    ),
+                  ],
+                ),
+                const Spacer(),
+                if (kIsWeb || MediaQuery.of(context).size.width > 600) ...[
+                  TextButton.icon(
+                    icon: const Icon(Icons.analytics_outlined, size: 18),
+                    label: const Text('Reports'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: WashTheme.textSecondary,
+                    ),
+                    onPressed: () => context.push('/owner/reports'),
+                  ),
+                  const SizedBox(width: 8),
+                  TextButton.icon(
+                    icon: const Icon(Icons.tune_rounded, size: 18),
+                    label: const Text('Rates'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: WashTheme.textSecondary,
+                    ),
+                    onPressed: () => context.push('/owner/rates'),
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton(
+                    icon: const Icon(Icons.logout_rounded, size: 20),
+                    tooltip: 'Sign Out',
+                    onPressed: () async {
+                      await FirebaseAuth.instance.signOut();
+                      if (context.mounted) context.go('/login');
+                    },
+                  ),
+                ] else ...[
+                  PopupMenuButton<String>(
+                    icon: const Icon(Icons.more_vert_rounded),
+                    color: WashTheme.surfaceCard,
+                    onSelected: (val) async {
+                      if (val == 'reports') context.push('/owner/reports');
+                      if (val == 'rates') context.push('/owner/rates');
+                      if (val == 'logout') {
+                        await FirebaseAuth.instance.signOut();
+                        if (context.mounted) context.go('/login');
+                      }
+                    },
+                    itemBuilder: (ctx) => [
+                      const PopupMenuItem(
+                        value: 'reports',
+                        child: Row(
+                          children: [
+                            Icon(Icons.analytics_outlined, size: 18),
+                            SizedBox(width: 12),
+                            Text('Reports'),
+                          ],
+                        ),
+                      ),
+                      const PopupMenuItem(
+                        value: 'rates',
+                        child: Row(
+                          children: [
+                            Icon(Icons.tune_rounded, size: 18),
+                            SizedBox(width: 12),
+                            Text('Wash Rates'),
+                          ],
+                        ),
+                      ),
+                      const PopupMenuItem(
+                        value: 'logout',
+                        child: Row(
+                          children: [
+                            Icon(Icons.logout_rounded, size: 18),
+                            SizedBox(width: 12),
+                            Text('Sign Out'),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ],
             ),
-          ],
+          ),
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.bar_chart_rounded),
-            tooltip: 'Reports',
-            onPressed: () => context.push('/owner/reports'),
-          ),
-          IconButton(
-            icon: const Icon(Icons.price_change_outlined),
-            tooltip: 'Rates',
-            onPressed: () => context.push('/owner/rates'),
-          ),
-          IconButton(
-            icon: const Icon(Icons.settings_outlined),
-            tooltip: 'Settings',
-            onPressed: () => context.push('/owner/settings'),
-          ),
-          IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: 'Sign out',
-            onPressed: () async {
-              await FirebaseAuth.instance.signOut();
-              if (context.mounted) context.go('/login');
-            },
-          ),
-        ],
       ),
       body: StreamBuilder<List<Visit>>(
         stream: todayStream,
         builder: (context, snap) {
           if (snap.connectionState == ConnectionState.waiting) {
             return const Center(
-                child: CircularProgressIndicator(color: WashTheme.accent));
-          }
-          final visits = snap.data ?? [];
-          final totalRevenue = visits.fold<int>(0, (s, v) => s + v.amount);
-          final paidRevenue =
-              visits.where((v) => v.paid).fold<int>(0, (s, v) => s + v.amount);
-          final countByType = <String, int>{};
-          for (final v in visits) {
-            countByType[v.vehicleType] =
-                (countByType[v.vehicleType] ?? 0) + 1;
+              child: CircularProgressIndicator(color: WashTheme.accent),
+            );
           }
 
-          return CustomScrollView(
-            slivers: [
-              // ── KPI strip ──────────────────────────────────────────
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-                  child: Column(
-                    children: [
-                      // Big money number
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(24),
-                        decoration: BoxDecoration(
-                          color: WashTheme.surface,
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: WashTheme.border),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text('Today\'s revenue',
-                                style: TextStyle(
-                                    color: WashTheme.textSecondary,
-                                    fontSize: 14)),
-                            const SizedBox(height: 4),
-                            Text(
-                              '₹$totalRevenue',
-                              style: const TextStyle(
-                                color: WashTheme.accent,
-                                fontSize: 52,
-                                fontWeight: FontWeight.w800,
-                                letterSpacing: -2,
+          final allVisits = snap.data ?? [];
+          final visits = _searchQuery.trim().isEmpty
+              ? allVisits
+              : allVisits
+                  .where((v) =>
+                      v.plate.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+                      (v.phone ?? '').contains(_searchQuery))
+                  .toList();
+
+          final totalRevenue = allVisits.fold<int>(0, (s, v) => s + v.amount);
+          final paidRevenue = allVisits
+              .where((v) => v.paid)
+              .fold<int>(0, (s, v) => s + v.amount);
+          final pendingRevenue = totalRevenue - paidRevenue;
+          final countByType = <String, int>{};
+          for (final v in allVisits) {
+            countByType[v.vehicleType] = (countByType[v.vehicleType] ?? 0) + 1;
+          }
+
+          return Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 1080),
+              child: CustomScrollView(
+                slivers: [
+                  // ── Hero KPI & Metrics ─────────────────────────────────────
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          // Revenue Banner Card
+                          Container(
+                            padding: const EdgeInsets.all(28),
+                            decoration: BoxDecoration(
+                              color: WashTheme.surfaceCard,
+                              borderRadius: BorderRadius.circular(24),
+                              border: Border.all(color: WashTheme.border),
+                              gradient: LinearGradient(
+                                colors: [
+                                  WashTheme.surfaceCard,
+                                  WashTheme.surfaceHigh.withValues(alpha: 0.6),
+                                ],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
                               ),
                             ),
-                            const SizedBox(height: 4),
-                            Text(
-                              '₹$paidRevenue collected  ·  ₹${totalRevenue - paidRevenue} pending',
-                              style: const TextStyle(
-                                  color: WashTheme.textSecondary,
-                                  fontSize: 13),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    const Text(
+                                      'TODAY\'S REVENUE',
+                                      style: TextStyle(
+                                        color: WashTheme.textSecondary,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w700,
+                                        letterSpacing: 1.2,
+                                      ),
+                                    ),
+                                    ElevatedButton.icon(
+                                      onPressed: () => _closeDay(context, ref),
+                                      icon: const Icon(
+                                          Icons.mark_email_read_outlined,
+                                          size: 16),
+                                      label: const Text('Close Day Report'),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor:
+                                            WashTheme.accent.withValues(alpha: 0.15),
+                                        foregroundColor: WashTheme.accent,
+                                        elevation: 0,
+                                        minimumSize: const Size(0, 38),
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 14, vertical: 8),
+                                        side: BorderSide(
+                                            color: WashTheme.accent
+                                                .withValues(alpha: 0.3)),
+                                        textStyle: const TextStyle(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w700),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.baseline,
+                                  textBaseline: TextBaseline.alphabetic,
+                                  children: [
+                                    Text(
+                                      '₹$totalRevenue',
+                                      style: const TextStyle(
+                                        color: WashTheme.accent,
+                                        fontSize: 46,
+                                        fontWeight: FontWeight.w900,
+                                        letterSpacing: -1.5,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Text(
+                                      'across ${allVisits.length} washes',
+                                      style: const TextStyle(
+                                        color: WashTheme.textSecondary,
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 16),
+                                // Cash collection indicator
+                                Row(
+                                  children: [
+                                    _StatusPill(
+                                      label: 'Collected',
+                                      amount: '₹$paidRevenue',
+                                      color: WashTheme.success,
+                                    ),
+                                    const SizedBox(width: 12),
+                                    _StatusPill(
+                                      label: 'Pending',
+                                      amount: '₹$pendingRevenue',
+                                      color: pendingRevenue > 0
+                                          ? WashTheme.danger
+                                          : WashTheme.textSecondary,
+                                    ),
+                                  ],
+                                ),
+                              ],
                             ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      // Type mix chips
-                      Row(
-                        children: [
-                          _KpiChip(
-                            label: 'Total',
-                            value: visits.length.toString(),
-                            icon: Icons.local_car_wash,
                           ),
-                          const SizedBox(width: 8),
-                          _KpiChip(
-                            label: VehicleType.label(VehicleType.hatchSedan),
-                            value: (countByType[VehicleType.hatchSedan] ?? 0)
-                                .toString(),
-                            icon: Icons.directions_car,
+                          const SizedBox(height: 16),
+
+                          // Vehicle breakdown chips
+                          LayoutBuilder(
+                            builder: (context, constraints) {
+                              final isNarrow = constraints.maxWidth < 600;
+                              if (isNarrow) {
+                                return Wrap(
+                                  spacing: 10,
+                                  runSpacing: 10,
+                                  children: [
+                                    _TypeMetricCard(
+                                      label: 'Hatch / Sedan',
+                                      count: countByType[VehicleType.hatchSedan] ?? 0,
+                                      icon: Icons.directions_car_filled_rounded,
+                                      width: (constraints.maxWidth - 10) / 2,
+                                    ),
+                                    _TypeMetricCard(
+                                      label: 'SUV / Compact',
+                                      count: countByType[VehicleType.suv] ?? 0,
+                                      icon: Icons.airport_shuttle_rounded,
+                                      width: (constraints.maxWidth - 10) / 2,
+                                    ),
+                                    _TypeMetricCard(
+                                      label: 'Two Wheeler',
+                                      count: countByType[VehicleType.bike] ?? 0,
+                                      icon: Icons.two_wheeler_rounded,
+                                      width: (constraints.maxWidth - 10) / 2,
+                                    ),
+                                    _TypeMetricCard(
+                                      label: 'Total Washed',
+                                      count: allVisits.length,
+                                      icon: Icons.local_car_wash_rounded,
+                                      width: (constraints.maxWidth - 10) / 2,
+                                    ),
+                                  ],
+                                );
+                              }
+                              return Row(
+                                children: [
+                                  Expanded(
+                                    child: _TypeMetricCard(
+                                      label: 'Hatch / Sedan',
+                                      count: countByType[VehicleType.hatchSedan] ?? 0,
+                                      icon: Icons.directions_car_filled_rounded,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: _TypeMetricCard(
+                                      label: 'SUV / Compact',
+                                      count: countByType[VehicleType.suv] ?? 0,
+                                      icon: Icons.airport_shuttle_rounded,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: _TypeMetricCard(
+                                      label: 'Two Wheeler',
+                                      count: countByType[VehicleType.bike] ?? 0,
+                                      icon: Icons.two_wheeler_rounded,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: _TypeMetricCard(
+                                      label: 'Total Washed',
+                                      count: allVisits.length,
+                                      icon: Icons.local_car_wash_rounded,
+                                    ),
+                                  ),
+                                ],
+                              );
+                            },
                           ),
-                          const SizedBox(width: 8),
-                          _KpiChip(
-                            label: VehicleType.label(VehicleType.suv),
-                            value:
-                                (countByType[VehicleType.suv] ?? 0).toString(),
-                            icon: Icons.airport_shuttle,
-                          ),
-                          const SizedBox(width: 8),
-                          _KpiChip(
-                            label: VehicleType.label(VehicleType.bike),
-                            value: (countByType[VehicleType.bike] ?? 0)
-                                .toString(),
-                            icon: Icons.two_wheeler,
+                          const SizedBox(height: 24),
+
+                          // Search & Filter header
+                          Row(
+                            children: [
+                              Text(
+                                'Live Vehicle Log (${visits.length})',
+                                style: const TextStyle(
+                                  color: WashTheme.textPrimary,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                              const Spacer(),
+                              SizedBox(
+                                width: 240,
+                                height: 40,
+                                child: TextField(
+                                  onChanged: (v) =>
+                                      setState(() => _searchQuery = v),
+                                  style: const TextStyle(fontSize: 13),
+                                  decoration: InputDecoration(
+                                    hintText: 'Search plate or phone...',
+                                    hintStyle: const TextStyle(
+                                        fontSize: 12,
+                                        color: WashTheme.textMuted),
+                                    prefixIcon: const Icon(Icons.search,
+                                        size: 18,
+                                        color: WashTheme.textSecondary),
+                                    contentPadding: const EdgeInsets.symmetric(
+                                        horizontal: 12, vertical: 8),
+                                    fillColor: WashTheme.surfaceCard,
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                      borderSide: const BorderSide(
+                                          color: WashTheme.border),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
-                      const SizedBox(height: 16),
-                      // Close day button
-                      OutlinedButton.icon(
-                        onPressed: () => _closeDay(context, ref),
-                        icon: const Icon(Icons.nightlight_round, size: 18),
-                        label: const Text('Close day & send report'),
-                        style: OutlinedButton.styleFrom(
-                          minimumSize: const Size(double.infinity, 48),
-                          foregroundColor: WashTheme.textSecondary,
-                          side: const BorderSide(color: WashTheme.border),
+                    ),
+                  ),
+
+                  const SliverToBoxAdapter(child: SizedBox(height: 12)),
+
+                  // ── Visit List ─────────────────────────────────────────────
+                  if (visits.isEmpty)
+                    SliverFillRemaining(
+                      hasScrollBody: false,
+                      child: Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(32),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Container(
+                                width: 72,
+                                height: 72,
+                                decoration: BoxDecoration(
+                                  color: WashTheme.surfaceHigh,
+                                  shape: BoxShape.circle,
+                                  border: Border.all(color: WashTheme.border),
+                                ),
+                                child: const Icon(Icons.no_crash_rounded,
+                                    size: 36, color: WashTheme.textMuted),
+                              ),
+                              const SizedBox(height: 16),
+                              Text(
+                                _searchQuery.isEmpty
+                                    ? 'No vehicles logged today yet'
+                                    : 'No matching records for "$_searchQuery"',
+                                style: const TextStyle(
+                                  color: WashTheme.textPrimary,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              const Text(
+                                'Vehicle scans logged by workers will stream here instantly.',
+                                style: TextStyle(
+                                  color: WashTheme.textMuted,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
-                    ],
-                  ),
-                ),
-              ),
-
-              // ── Visit list ────────────────────────────────────────
-              const SliverToBoxAdapter(
-                child: Padding(
-                  padding: EdgeInsets.fromLTRB(16, 24, 16, 8),
-                  child: Text(
-                    'Today\'s vehicles',
-                    style: TextStyle(
-                      color: WashTheme.textSecondary,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 0.5,
+                    )
+                  else
+                    SliverPadding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      sliver: SliverList(
+                        delegate: SliverChildBuilderDelegate(
+                          (ctx, i) => _VisitTile(visit: visits[i]),
+                          childCount: visits.length,
+                        ),
+                      ),
                     ),
-                  ),
-                ),
+
+                  const SliverToBoxAdapter(child: SizedBox(height: 40)),
+                ],
               ),
-
-              if (visits.isEmpty)
-                const SliverFillRemaining(
-                  hasScrollBody: false,
-                  child: Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.local_car_wash,
-                            size: 64, color: WashTheme.border),
-                        SizedBox(height: 16),
-                        Text('No vehicles yet today',
-                            style:
-                                TextStyle(color: WashTheme.textSecondary)),
-                      ],
-                    ),
-                  ),
-                )
-              else
-                SliverList(
-                  delegate: SliverChildBuilderDelegate(
-                    (ctx, i) => _VisitTile(visit: visits[i]),
-                    childCount: visits.length,
-                  ),
-                ),
-
-              const SliverToBoxAdapter(child: SizedBox(height: 32)),
-            ],
+            ),
           );
         },
       ),
@@ -225,20 +532,25 @@ class DashboardScreen extends ConsumerWidget {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        backgroundColor: WashTheme.surface,
-        title: const Text('Close day?'),
+        backgroundColor: WashTheme.surfaceCard,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Close Day & Send Email?'),
         content: const Text(
-          'This will send the end-of-day report to your email.',
-          style: TextStyle(color: WashTheme.textSecondary),
+          'This triggers the automated end-of-day summary email to all configured owner email addresses with today\'s complete breakdown.',
+          style: TextStyle(color: WashTheme.textSecondary, height: 1.4),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: const Text('Cancel',
+                style: TextStyle(color: WashTheme.textSecondary)),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Send report'),
+            style: ElevatedButton.styleFrom(
+              minimumSize: const Size(120, 44),
+            ),
+            child: const Text('Send Report'),
           ),
         ],
       ),
@@ -247,55 +559,114 @@ class DashboardScreen extends ConsumerWidget {
       await ref.read(firestoreServiceProvider).triggerCloseDayEmail();
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Report queued — check your email shortly.')),
+          const SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.check_circle_rounded,
+                    color: WashTheme.success, size: 20),
+                SizedBox(width: 10),
+                Text('Report queued! Check your inbox shortly.'),
+              ],
+            ),
+            backgroundColor: WashTheme.surfaceHigh,
+          ),
         );
       }
     }
   }
 }
 
-class _KpiChip extends StatelessWidget {
+class _StatusPill extends StatelessWidget {
   final String label;
-  final String value;
-  final IconData icon;
+  final String amount;
+  final Color color;
 
-  const _KpiChip({
+  const _StatusPill({
     required this.label,
-    required this.value,
-    required this.icon,
+    required this.amount,
+    required this.color,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
-        decoration: BoxDecoration(
-          color: WashTheme.surface,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: WashTheme.border),
-        ),
-        child: Column(
-          children: [
-            Text(
-              value,
-              style: const TextStyle(
-                color: WashTheme.textPrimary,
-                fontSize: 22,
-                fontWeight: FontWeight.w800,
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withValues(alpha: 0.25)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CircleAvatar(radius: 3, backgroundColor: color),
+          const SizedBox(width: 6),
+          Text(
+            '$label: ',
+            style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.w600),
+          ),
+          Text(
+            amount,
+            style: TextStyle(
+                color: color, fontSize: 13, fontWeight: FontWeight.w800),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TypeMetricCard extends StatelessWidget {
+  final String label;
+  final int count;
+  final IconData icon;
+  final double? width;
+
+  const _TypeMetricCard({
+    required this.label,
+    required this.count,
+    required this.icon,
+    this.width,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: width,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: WashTheme.surfaceCard,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: WashTheme.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                label,
+                style: const TextStyle(
+                  color: WashTheme.textSecondary,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
+              Icon(icon, size: 18, color: WashTheme.textMuted),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            count.toString(),
+            style: const TextStyle(
+              color: WashTheme.textPrimary,
+              fontSize: 26,
+              fontWeight: FontWeight.w900,
+              letterSpacing: -0.5,
             ),
-            const SizedBox(height: 2),
-            Text(
-              label,
-              textAlign: TextAlign.center,
-              style:
-                  const TextStyle(color: WashTheme.textSecondary, fontSize: 11),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -308,87 +679,172 @@ class _VisitTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final time = DateFormat('h:mm a').format(visit.createdAt);
-    return InkWell(
-      onTap: () => context.push('/owner/visit/${visit.id}'),
-      child: Container(
-        margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: WashTheme.surface,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: WashTheme.border),
-        ),
-        child: Row(
-          children: [
-            // Plate badge
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: WashTheme.plateYellow,
-                borderRadius: BorderRadius.circular(4),
-                border: Border.all(color: WashTheme.plateBlack, width: 1.5),
-              ),
-              child: Text(
-                visit.plate,
-                style: const TextStyle(
-                  color: WashTheme.plateBlack,
-                  fontWeight: FontWeight.w900,
-                  fontSize: 13,
-                  letterSpacing: 1.5,
-                ),
-              ),
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      child: Material(
+        color: WashTheme.surfaceCard,
+        borderRadius: BorderRadius.circular(16),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () => context.push('/owner/visit/${visit.id}'),
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: WashTheme.border),
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '${VehicleType.label(visit.vehicleType)}  ·  ${WashPackage.label(visit.packageId)}',
-                    style: const TextStyle(
-                        color: WashTheme.textPrimary, fontSize: 14),
-                  ),
-                  Text(
-                    time,
-                    style: const TextStyle(
-                        color: WashTheme.textSecondary, fontSize: 12),
-                  ),
-                ],
-              ),
-            ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
+            child: Row(
               children: [
-                Text(
-                  '₹${visit.amount}',
-                  style: const TextStyle(
-                    color: WashTheme.textPrimary,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
+                // Authentic License Plate Badge
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 6, vertical: 2),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                   decoration: BoxDecoration(
-                    color: visit.paid
-                        ? WashTheme.success.withValues(alpha: 0.15)
-                        : WashTheme.danger.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(4),
+                    color: WashTheme.plateYellow,
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: WashTheme.plateBlack, width: 2),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.2),
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
                   ),
-                  child: Text(
-                    visit.paid ? 'Paid' : 'Unpaid',
-                    style: TextStyle(
-                      color:
-                          visit.paid ? WashTheme.success : WashTheme.danger,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                    ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 2, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: WashTheme.plateBlue,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                        child: const Text(
+                          'IND',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 7,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        visit.plate,
+                        style: const TextStyle(
+                          color: WashTheme.plateBlack,
+                          fontWeight: FontWeight.w900,
+                          fontSize: 14,
+                          letterSpacing: 1.5,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
+                const SizedBox(width: 16),
+
+                // Vehicle Details
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Text(
+                            VehicleType.emoji(visit.vehicleType),
+                            style: const TextStyle(fontSize: 14),
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            '${VehicleType.label(visit.vehicleType)} • ${WashPackage.label(visit.packageId)}',
+                            style: const TextStyle(
+                              color: WashTheme.textPrimary,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Text(
+                            time,
+                            style: const TextStyle(
+                              color: WashTheme.textMuted,
+                              fontSize: 12,
+                            ),
+                          ),
+                          if (visit.phone != null && visit.phone!.isNotEmpty) ...[
+                            const SizedBox(width: 8),
+                            const Text('•',
+                                style: TextStyle(
+                                    color: WashTheme.textMuted, fontSize: 10)),
+                            const SizedBox(width: 8),
+                            Text(
+                              visit.phone!,
+                              style: const TextStyle(
+                                color: WashTheme.textSecondary,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+
+                // Price & Payment Tag
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      '₹${visit.amount}',
+                      style: const TextStyle(
+                        color: WashTheme.textPrimary,
+                        fontSize: 17,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: visit.paid
+                            ? WashTheme.success.withValues(alpha: 0.15)
+                            : WashTheme.danger.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(
+                          color: visit.paid
+                              ? WashTheme.success.withValues(alpha: 0.3)
+                              : WashTheme.danger.withValues(alpha: 0.3),
+                        ),
+                      ),
+                      child: Text(
+                        visit.paid ? 'PAID' : 'UNPAID',
+                        style: TextStyle(
+                          color: visit.paid
+                              ? WashTheme.success
+                              : WashTheme.danger,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(width: 8),
+                const Icon(Icons.chevron_right_rounded,
+                    color: WashTheme.textMuted, size: 20),
               ],
             ),
-          ],
+          ),
         ),
       ),
     );

@@ -1,9 +1,11 @@
 // ML Kit on-device OCR — extracts likely plate text from an image.
+// Uses fromFilePath via a temp file so ML Kit can handle JPEG/PNG natively.
 
+import 'dart:io';
 import 'dart:typed_data';
-import 'dart:ui' show Size;
 
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
+import 'package:path_provider/path_provider.dart';
 
 class OcrService {
   final _recognizer = TextRecognizer(script: TextRecognitionScript.latin);
@@ -14,30 +16,36 @@ class OcrService {
   );
 
   Future<String> extractPlate(Uint8List imageBytes) async {
-    final inputImage = InputImage.fromBytes(
-      bytes: imageBytes,
-      metadata: InputImageMetadata(
-        size: const Size(1280, 720),
-        rotation: InputImageRotation.rotation0deg,
-        format: InputImageFormat.nv21,
-        bytesPerRow: 1280,
-      ),
-    );
+    // Write bytes to a temp file so ML Kit can decode the JPEG properly.
+    final dir = await getTemporaryDirectory();
+    final file = File('${dir.path}/plate_ocr_${DateTime.now().millisecondsSinceEpoch}.jpg');
+    await file.writeAsBytes(imageBytes);
 
-    final result = await _recognizer.processImage(inputImage);
+    try {
+      final inputImage = InputImage.fromFilePath(file.path);
+      final result = await _recognizer.processImage(inputImage);
 
-    for (final block in result.blocks) {
-      final text = block.text.replaceAll(' ', '').toUpperCase();
-      final match = _plateRegex.firstMatch(text);
-      if (match != null) return match.group(0)!;
+      // First pass: look for full Indian plate pattern (e.g. KA01AB1234)
+      for (final block in result.blocks) {
+        final text = block.text.replaceAll(' ', '').toUpperCase();
+        final match = _plateRegex.firstMatch(text);
+        if (match != null) return match.group(0)!;
+      }
+
+      // Fallback: return the longest alphanumeric token found
+      final allText = result.text.replaceAll('\n', ' ');
+      final tokens = allText
+          .split(' ')
+          .map((t) => t.replaceAll(RegExp(r'[^A-Z0-9]', caseSensitive: false), ''))
+          .where((t) => t.length >= 4)
+          .toList()
+        ..sort((a, b) => b.length.compareTo(a.length));
+
+      return tokens.isNotEmpty ? tokens.first.toUpperCase() : '';
+    } finally {
+      // Clean up temp file
+      if (await file.exists()) await file.delete();
     }
-
-    final allText = result.text.replaceAll('\n', ' ');
-    final tokens = allText.split(' ')
-      ..removeWhere((t) => t.isEmpty)
-      ..sort((a, b) => b.length.compareTo(a.length));
-
-    return tokens.isNotEmpty ? tokens.first.toUpperCase() : '';
   }
 
   void dispose() => _recognizer.close();

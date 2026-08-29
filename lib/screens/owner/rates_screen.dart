@@ -1,4 +1,5 @@
-// Rate table editor — owner can change prices per vehicle × package.
+// Rate table editor — owner can customize pricing per vehicle type × package.
+// Clean desktop and mobile responsive layout.
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -66,7 +67,17 @@ class _RatesScreenState extends ConsumerState<RatesScreen> {
       }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Rates saved')),
+          const SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.check_circle_rounded,
+                    color: WashTheme.success, size: 20),
+                SizedBox(width: 10),
+                Text('Wash rates updated successfully!'),
+              ],
+            ),
+            backgroundColor: WashTheme.surfaceHigh,
+          ),
         );
       }
     } finally {
@@ -77,121 +88,181 @@ class _RatesScreenState extends ConsumerState<RatesScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: WashTheme.bg,
       appBar: AppBar(
-        title: const Text('Wash rates'),
+        title: const Text('Wash Rate Matrix'),
         actions: [
           if (!_loading)
-            TextButton(
-              onPressed: _saving ? null : _save,
-              child: _saving
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(
-                          strokeWidth: 2, color: WashTheme.accent))
-                  : const Text('Save',
-                      style: TextStyle(
-                          color: WashTheme.accent,
-                          fontWeight: FontWeight.w700)),
+            Padding(
+              padding: const EdgeInsets.only(right: 16),
+              child: ElevatedButton.icon(
+                onPressed: _saving ? null : _save,
+                icon: const Icon(Icons.save_rounded, size: 16),
+                label: Text(_saving ? 'Saving...' : 'Save Rates'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: WashTheme.accent,
+                  foregroundColor: WashTheme.bg,
+                  minimumSize: const Size(0, 38),
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  textStyle: const TextStyle(
+                      fontSize: 13, fontWeight: FontWeight.w800),
+                ),
+              ),
             ),
         ],
       ),
-      body: _loading
-          ? const Center(
-              child: CircularProgressIndicator(color: WashTheme.accent))
-          : ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: WashTheme.accent.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(
-                        color: WashTheme.accent.withValues(alpha: 0.3)),
-                  ),
-                  child: const Text(
-                    'Changes take effect immediately for new washes.',
-                    style: TextStyle(
-                        color: WashTheme.accent, fontSize: 13),
-                  ),
-                ),
-                const SizedBox(height: 20),
-                ...VehicleType.all.map((vt) {
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 10),
-                        child: Row(
-                          children: [
-                            Text(VehicleType.emoji(vt),
-                                style: const TextStyle(fontSize: 20)),
-                            const SizedBox(width: 8),
-                            Text(
-                              VehicleType.label(vt),
-                              style: const TextStyle(
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 960),
+          child: _loading
+              ? const Center(
+                  child: CircularProgressIndicator(color: WashTheme.accent))
+              : ListView(
+                  padding: const EdgeInsets.all(20),
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: WashTheme.accent.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                            color: WashTheme.accent.withValues(alpha: 0.25)),
+                      ),
+                      child: const Row(
+                        children: [
+                          Icon(Icons.info_outline_rounded,
+                              color: WashTheme.accent, size: 20),
+                          SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              'Rates set here automatically determine pricing on worker mobile intake devices.',
+                              style: TextStyle(
                                 color: WashTheme.textPrimary,
-                                fontSize: 16,
-                                fontWeight: FontWeight.w700,
+                                fontSize: 13,
+                                height: 1.4,
                               ),
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
-                      ...WashPackage.all.map((pkg) {
-                        final key = rateKey(vt, pkg);
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 12),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  WashPackage.label(pkg),
-                                  style: const TextStyle(
-                                      color: WashTheme.textSecondary,
-                                      fontSize: 15),
-                                ),
-                              ),
-                              const SizedBox(width: 16),
-                              SizedBox(
-                                width: 100,
-                                child: TextField(
-                                  controller: _controllers[key],
-                                  keyboardType: TextInputType.number,
-                                  inputFormatters: [
-                                    FilteringTextInputFormatter.digitsOnly
-                                  ],
-                                  textAlign: TextAlign.right,
+                    ),
+                    const SizedBox(height: 24),
+
+                    ...VehicleType.all.map((vt) {
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 20),
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          color: WashTheme.surfaceCard,
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: WashTheme.border),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Text(VehicleType.emoji(vt),
+                                    style: const TextStyle(fontSize: 22)),
+                                const SizedBox(width: 10),
+                                Text(
+                                  VehicleType.label(vt),
                                   style: const TextStyle(
                                     color: WashTheme.textPrimary,
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                  decoration: const InputDecoration(
-                                    prefixText: '₹ ',
-                                    prefixStyle: TextStyle(
-                                        color: WashTheme.textSecondary,
-                                        fontSize: 16),
+                                    fontSize: 17,
+                                    fontWeight: FontWeight.w800,
                                   ),
                                 ),
-                              ),
-                            ],
-                          ),
-                        );
-                      }),
-                      const Divider(height: 24),
-                    ],
-                  );
-                }),
-                const SizedBox(height: 16),
-                ElevatedButton(
-                  onPressed: _saving ? null : _save,
-                  child: const Text('Save all rates'),
+                              ],
+                            ),
+                            const SizedBox(height: 16),
+                            const Divider(),
+                            const SizedBox(height: 8),
+
+                          ...WashPackage.forVehicle(vt).map((pkg) {
+                              final key = rateKey(vt, pkg);
+                              return Padding(
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 8),
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            WashPackage.label(pkg),
+                                            style: const TextStyle(
+                                              color: WashTheme.textPrimary,
+                                              fontSize: 15,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                          Text(
+                                            WashPackage.description(pkg),
+                                            style: const TextStyle(
+                                              color: WashTheme.textMuted,
+                                              fontSize: 12,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    const SizedBox(width: 16),
+                                    SizedBox(
+                                      width: 130,
+                                      child: TextField(
+                                        controller: _controllers[key],
+                                        keyboardType: TextInputType.number,
+                                        inputFormatters: [
+                                          FilteringTextInputFormatter.digitsOnly
+                                        ],
+                                        textAlign: TextAlign.right,
+                                        style: const TextStyle(
+                                          color: WashTheme.textPrimary,
+                                          fontSize: 17,
+                                          fontWeight: FontWeight.w800,
+                                        ),
+                                        decoration: InputDecoration(
+                                          prefixIcon: const Padding(
+                                            padding: EdgeInsets.only(
+                                                left: 12, top: 12),
+                                            child: Text(
+                                              '₹',
+                                              style: TextStyle(
+                                                color: WashTheme.accent,
+                                                fontSize: 17,
+                                                fontWeight: FontWeight.w800,
+                                              ),
+                                            ),
+                                          ),
+                                          contentPadding:
+                                              const EdgeInsets.symmetric(
+                                                  horizontal: 14, vertical: 12),
+                                          fillColor: WashTheme.surfaceHigh,
+                                          border: OutlineInputBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(10),
+                                            borderSide: const BorderSide(
+                                                color: WashTheme.border),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }),
+                          ],
+                        ),
+                      );
+                    }),
+                    const SizedBox(height: 24),
+                  ],
                 ),
-                const SizedBox(height: 32),
-              ],
-            ),
+        ),
+      ),
     );
   }
 }

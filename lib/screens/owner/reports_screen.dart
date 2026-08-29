@@ -1,13 +1,13 @@
 // Date-range reports screen — week / month / custom filter.
 // Shows totals, type breakdown, package breakdown, and CSV export.
 
+import 'dart:convert';
 import 'package:csv/csv.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'dart:convert';
 
 import '../../core/constants.dart';
 import '../../core/theme.dart';
@@ -122,6 +122,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     final totalRevenue = visits.fold<int>(0, (s, v) => s + v.amount);
     final paidRevenue =
         visits.where((v) => v.paid).fold<int>(0, (s, v) => s + v.amount);
+    final pendingRevenue = totalRevenue - paidRevenue;
     final countByType = <String, int>{};
     final revenueByType = <String, int>{};
     final countByPkg = <String, int>{};
@@ -133,197 +134,292 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     }
     final r = _effectiveRange;
     final rangeLabel =
-        '${DateFormat('d MMM').format(r.start)} – ${DateFormat('d MMM yyyy').format(r.end)}';
+        '${DateFormat('d MMM yyyy').format(r.start)} – ${DateFormat('d MMM yyyy').format(r.end)}';
 
     return Scaffold(
+      backgroundColor: WashTheme.bg,
       appBar: AppBar(
-        title: const Text('Reports'),
+        title: const Text('Analytics & Financial Reports'),
         actions: [
           if (visits.isNotEmpty)
-            IconButton(
-              icon: const Icon(Icons.download_outlined),
-              tooltip: 'Export CSV',
-              onPressed: _exportCsv,
+            Padding(
+              padding: const EdgeInsets.only(right: 16),
+              child: ElevatedButton.icon(
+                icon: const Icon(Icons.file_download_outlined, size: 16),
+                label: const Text('Export CSV'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: WashTheme.surfaceHigh,
+                  foregroundColor: WashTheme.textPrimary,
+                  minimumSize: const Size(0, 36),
+                  side: const BorderSide(color: WashTheme.border),
+                  padding: const EdgeInsets.symmetric(horizontal: 14),
+                  textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+                ),
+                onPressed: _exportCsv,
+              ),
             ),
         ],
       ),
-      body: Column(
-        children: [
-          // Range selector
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-            child: Row(
-              children: [
-                _RangeChip(
-                    label: 'Today',
-                    selected: _range == ReportRange.today,
-                    onTap: () {
-                      setState(() => _range = ReportRange.today);
-                      _load();
-                    }),
-                const SizedBox(width: 8),
-                _RangeChip(
-                    label: '7 days',
-                    selected: _range == ReportRange.week,
-                    onTap: () {
-                      setState(() => _range = ReportRange.week);
-                      _load();
-                    }),
-                const SizedBox(width: 8),
-                _RangeChip(
-                    label: 'This month',
-                    selected: _range == ReportRange.month,
-                    onTap: () {
-                      setState(() => _range = ReportRange.month);
-                      _load();
-                    }),
-                const SizedBox(width: 8),
-                _RangeChip(
-                    label: 'Custom',
-                    selected: _range == ReportRange.custom,
-                    onTap: _pickCustom),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 6, 16, 0),
-            child: Text(rangeLabel,
-                style: const TextStyle(
-                    color: WashTheme.textSecondary, fontSize: 12)),
-          ),
-          const SizedBox(height: 4),
-          Expanded(
-            child: _loading
-                ? const Center(
-                    child: CircularProgressIndicator(color: WashTheme.accent))
-                : ListView(
-                    padding: const EdgeInsets.all(16),
-                    children: [
-                      // Big total
-                      Container(
-                        padding: const EdgeInsets.all(24),
-                        decoration: BoxDecoration(
-                          color: WashTheme.surface,
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: WashTheme.border),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              mainAxisAlignment:
-                                  MainAxisAlignment.spaceBetween,
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1080),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Period Selector Tabs
+              Container(
+                margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: WashTheme.surfaceCard,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: WashTheme.border),
+                ),
+                child: Row(
+                  children: [
+                    _RangePill(
+                      label: 'Today',
+                      selected: _range == ReportRange.today,
+                      onTap: () {
+                        setState(() => _range = ReportRange.today);
+                        _load();
+                      },
+                    ),
+                    _RangePill(
+                      label: 'Last 7 Days',
+                      selected: _range == ReportRange.week,
+                      onTap: () {
+                        setState(() => _range = ReportRange.week);
+                        _load();
+                      },
+                    ),
+                    _RangePill(
+                      label: 'This Month',
+                      selected: _range == ReportRange.month,
+                      onTap: () {
+                        setState(() => _range = ReportRange.month);
+                        _load();
+                      },
+                    ),
+                    _RangePill(
+                      label: 'Custom Range',
+                      selected: _range == ReportRange.custom,
+                      onTap: _pickCustom,
+                    ),
+                  ],
+                ),
+              ),
+
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 10, 20, 4),
+                child: Row(
+                  children: [
+                    const Icon(Icons.date_range_rounded,
+                        size: 14, color: WashTheme.textMuted),
+                    const SizedBox(width: 6),
+                    Text(
+                      rangeLabel,
+                      style: const TextStyle(
+                        color: WashTheme.textSecondary,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              Expanded(
+                child: _loading
+                    ? const Center(
+                        child: CircularProgressIndicator(color: WashTheme.accent),
+                      )
+                    : ListView(
+                        padding: const EdgeInsets.all(16),
+                        children: [
+                          // Revenue Overview Card
+                          Container(
+                            padding: const EdgeInsets.all(28),
+                            decoration: BoxDecoration(
+                              color: WashTheme.surfaceCard,
+                              borderRadius: BorderRadius.circular(24),
+                              border: Border.all(color: WashTheme.border),
+                              gradient: LinearGradient(
+                                colors: [
+                                  WashTheme.surfaceCard,
+                                  WashTheme.surfaceHigh.withValues(alpha: 0.5),
+                                ],
+                              ),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Column(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.start,
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
                                   children: [
-                                    const Text('Total revenue',
-                                        style: TextStyle(
+                                    Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        const Text(
+                                          'TOTAL REVENUE',
+                                          style: TextStyle(
                                             color: WashTheme.textSecondary,
-                                            fontSize: 14)),
-                                    Text(
-                                      '₹$totalRevenue',
-                                      style: const TextStyle(
-                                        color: WashTheme.accent,
-                                        fontSize: 48,
-                                        fontWeight: FontWeight.w800,
-                                        letterSpacing: -1.5,
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w700,
+                                            letterSpacing: 1.1,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 6),
+                                        Text(
+                                          '₹$totalRevenue',
+                                          style: const TextStyle(
+                                            color: WashTheme.accent,
+                                            fontSize: 48,
+                                            fontWeight: FontWeight.w900,
+                                            letterSpacing: -1.5,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    Container(
+                                      padding: const EdgeInsets.all(16),
+                                      decoration: BoxDecoration(
+                                        color: WashTheme.surfaceHigh,
+                                        borderRadius: BorderRadius.circular(16),
+                                        border: Border.all(color: WashTheme.border),
+                                      ),
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.end,
+                                        children: [
+                                          Text(
+                                            '${visits.length} Washes',
+                                            style: const TextStyle(
+                                              color: WashTheme.textPrimary,
+                                              fontSize: 18,
+                                              fontWeight: FontWeight.w800,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            'Avg ₹${visits.isNotEmpty ? (totalRevenue / visits.length).round() : 0} / wash',
+                                            style: const TextStyle(
+                                              color: WashTheme.textSecondary,
+                                              fontSize: 12,
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     ),
                                   ],
                                 ),
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                const SizedBox(height: 16),
+                                Row(
                                   children: [
-                                    Text('${visits.length} vehicles',
-                                        style: const TextStyle(
-                                            color: WashTheme.textPrimary,
-                                            fontSize: 20,
-                                            fontWeight: FontWeight.w700)),
-                                    Text(
-                                        '₹$paidRevenue collected',
-                                        style: const TextStyle(
-                                            color: WashTheme.success,
-                                            fontSize: 13)),
-                                    Text(
-                                        '₹${totalRevenue - paidRevenue} pending',
-                                        style: const TextStyle(
-                                            color: WashTheme.danger,
-                                            fontSize: 13)),
+                                    _ReportTag(
+                                      label: 'Collected Cash',
+                                      value: '₹$paidRevenue',
+                                      color: WashTheme.success,
+                                    ),
+                                    const SizedBox(width: 12),
+                                    _ReportTag(
+                                      label: 'Pending Balance',
+                                      value: '₹$pendingRevenue',
+                                      color: pendingRevenue > 0
+                                          ? WashTheme.danger
+                                          : WashTheme.textSecondary,
+                                    ),
                                   ],
                                 ),
                               ],
                             ),
-                          ],
-                        ),
+                          ),
+                          const SizedBox(height: 24),
+
+                          // By vehicle type breakdown
+                          const _SectionTitle(
+                            title: 'Volume & Revenue by Vehicle Type',
+                            icon: Icons.directions_car_rounded,
+                          ),
+                          const SizedBox(height: 10),
+                          ...VehicleType.all.map((type) {
+                            final count = countByType[type] ?? 0;
+                            final rev = revenueByType[type] ?? 0;
+                            return _BreakdownCard(
+                              emoji: VehicleType.emoji(type),
+                              label: VehicleType.label(type),
+                              count: count,
+                              revenue: rev,
+                              total: visits.isNotEmpty ? visits.length : 1,
+                            );
+                          }),
+                          const SizedBox(height: 24),
+
+                          // By package breakdown
+                          const _SectionTitle(
+                            title: 'Service Package Distribution',
+                            icon: Icons.cleaning_services_rounded,
+                          ),
+                          const SizedBox(height: 10),
+                          ...WashPackage.all.map((pkg) {
+                            final count = countByPkg[pkg] ?? 0;
+                            return _BreakdownCard(
+                              emoji: '✨',
+                              label: WashPackage.label(pkg),
+                              count: count,
+                              total: visits.isNotEmpty ? visits.length : 1,
+                            );
+                          }),
+                          const SizedBox(height: 40),
+                        ],
                       ),
-                      const SizedBox(height: 16),
-
-                      // By vehicle type
-                      const _SectionHeader('By vehicle type'),
-                      ...VehicleType.all.map((type) {
-                        final count = countByType[type] ?? 0;
-                        final rev = revenueByType[type] ?? 0;
-                        return _BreakdownTile(
-                          label:
-                              '${VehicleType.emoji(type)}  ${VehicleType.label(type)}',
-                          count: count,
-                          revenue: rev,
-                          total: visits.isNotEmpty ? visits.length : 1,
-                        );
-                      }),
-                      const SizedBox(height: 16),
-
-                      // By package
-                      const _SectionHeader('By package'),
-                      ...WashPackage.all.map((pkg) {
-                        final count = countByPkg[pkg] ?? 0;
-                        return _BreakdownTile(
-                          label: WashPackage.label(pkg),
-                          count: count,
-                          total: visits.isNotEmpty ? visits.length : 1,
-                        );
-                      }),
-                      const SizedBox(height: 32),
-                    ],
-                  ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
 }
 
-class _RangeChip extends StatelessWidget {
+class _RangePill extends StatelessWidget {
   final String label;
   final bool selected;
   final VoidCallback onTap;
-  const _RangeChip(
-      {required this.label, required this.selected, required this.onTap});
+
+  const _RangePill({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Expanded(
       child: GestureDetector(
         onTap: onTap,
-        child: Container(
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
           padding: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(
             color: selected
-                ? WashTheme.accent.withValues(alpha: 0.15)
-                : WashTheme.surface,
+                ? WashTheme.accent.withValues(alpha: 0.18)
+                : Colors.transparent,
             borderRadius: BorderRadius.circular(10),
             border: Border.all(
-                color: selected ? WashTheme.accent : WashTheme.border),
+              color: selected ? WashTheme.accent : Colors.transparent,
+              width: 1.2,
+            ),
           ),
           child: Text(
             label,
             textAlign: TextAlign.center,
             style: TextStyle(
               color: selected ? WashTheme.accent : WashTheme.textSecondary,
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
+              fontSize: 13,
+              fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
             ),
           ),
         ),
@@ -332,76 +428,141 @@ class _RangeChip extends StatelessWidget {
   }
 }
 
-class _SectionHeader extends StatelessWidget {
-  final String title;
-  const _SectionHeader(this.title);
+class _ReportTag extends StatelessWidget {
+  final String label;
+  final String value;
+  final Color color;
+
+  const _ReportTag({
+    required this.label,
+    required this.value,
+    required this.color,
+  });
+
   @override
-  Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.only(bottom: 8),
-        child: Text(
-          title,
-          style: const TextStyle(
-              color: WashTheme.textSecondary,
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 0.5),
-        ),
-      );
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withValues(alpha: 0.25)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CircleAvatar(radius: 3, backgroundColor: color),
+          const SizedBox(width: 6),
+          Text('$label: ',
+              style: TextStyle(
+                  color: color, fontSize: 12, fontWeight: FontWeight.w600)),
+          Text(value,
+              style: TextStyle(
+                  color: color, fontSize: 13, fontWeight: FontWeight.w800)),
+        ],
+      ),
+    );
+  }
 }
 
-class _BreakdownTile extends StatelessWidget {
+class _SectionTitle extends StatelessWidget {
+  final String title;
+  final IconData icon;
+  const _SectionTitle({required this.title, required this.icon});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(icon, size: 16, color: WashTheme.accent),
+        const SizedBox(width: 8),
+        Text(
+          title,
+          style: const TextStyle(
+            color: WashTheme.textPrimary,
+            fontSize: 14,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.3,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _BreakdownCard extends StatelessWidget {
+  final String emoji;
   final String label;
   final int count;
   final int total;
   final int? revenue;
-  const _BreakdownTile(
-      {required this.label,
-      required this.count,
-      required this.total,
-      this.revenue});
+
+  const _BreakdownCard({
+    required this.emoji,
+    required this.label,
+    required this.count,
+    required this.total,
+    this.revenue,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final percentage = total > 0 ? (count / total * 100).round() : 0;
     final fraction = total > 0 ? count / total : 0.0;
+
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(14),
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: WashTheme.surface,
-        borderRadius: BorderRadius.circular(12),
+        color: WashTheme.surfaceCard,
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: WashTheme.border),
       ),
       child: Column(
         children: [
           Row(
             children: [
+              Text(emoji, style: const TextStyle(fontSize: 16)),
+              const SizedBox(width: 10),
               Expanded(
-                child: Text(label,
-                    style: const TextStyle(
-                        color: WashTheme.textPrimary, fontSize: 14)),
-              ),
-              Text('$count vehicles',
+                child: Text(
+                  label,
                   style: const TextStyle(
-                      color: WashTheme.textSecondary, fontSize: 13)),
+                    color: WashTheme.textPrimary,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              Text(
+                '$count ($percentage%)',
+                style: const TextStyle(
+                  color: WashTheme.textSecondary,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
               if (revenue != null) ...[
-                const SizedBox(width: 12),
-                Text('₹$revenue',
-                    style: const TextStyle(
-                        color: WashTheme.textPrimary,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700)),
+                const SizedBox(width: 16),
+                Text(
+                  '₹$revenue',
+                  style: const TextStyle(
+                    color: WashTheme.accent,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
               ],
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
           ClipRRect(
-            borderRadius: BorderRadius.circular(4),
+            borderRadius: BorderRadius.circular(6),
             child: LinearProgressIndicator(
               value: fraction,
-              backgroundColor: WashTheme.border,
-              valueColor:
-                  const AlwaysStoppedAnimation<Color>(WashTheme.accent),
-              minHeight: 4,
+              backgroundColor: WashTheme.surfaceHigh,
+              valueColor: const AlwaysStoppedAnimation<Color>(WashTheme.accent),
+              minHeight: 6,
             ),
           ),
         ],

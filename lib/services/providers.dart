@@ -12,15 +12,17 @@ export 'ocr_service.dart';
 export 'shake_service.dart';
 export 'storage_service.dart';
 
-final firestoreServiceProvider = Provider.autoDispose<FirestoreService>((ref) {
+// Non-autoDispose so the service instance survives across screen navigations
+// and async _load() calls in ConsumerStatefulWidget.initState are not cancelled.
+final firestoreServiceProvider = Provider<FirestoreService>((ref) {
   return FirestoreService();
 });
 
-final storageServiceProvider = Provider.autoDispose<StorageService>((ref) {
+final storageServiceProvider = Provider<StorageService>((ref) {
   return StorageService();
 });
 
-final ocrServiceProvider = Provider.autoDispose<OcrService>((ref) {
+final ocrServiceProvider = Provider<OcrService>((ref) {
   final svc = OcrService();
   ref.onDispose(svc.dispose);
   return svc;

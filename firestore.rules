@@ -2,50 +2,47 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helpers
+    // Uses custom claims set by set-roles.js
     function isSignedIn() {
       return request.auth != null;
     }
 
     function isOwner() {
-      return isSignedIn() &&
-        get(/databases/$(database)/documents/workers/$(request.auth.uid)).data.isOwner == true;
+      return isSignedIn() && request.auth.token.role == 'owner';
     }
 
-    // Workers can read their own record
-    match /workers/{uid} {
-      allow read: if request.auth.uid == uid;
-      allow write: if isOwner();
+    function isWorker() {
+      return isSignedIn() && request.auth.token.role == 'worker';
     }
 
-    // Any signed-in user can create visits; owner can update/delete
+    // Any authenticated user (worker or owner) can read/write visits
     match /visits/{id} {
       allow read: if isSignedIn();
-      allow create: if isSignedIn();
+      allow create: if isWorker() || isOwner();
       allow update, delete: if isOwner();
     }
 
-    // Any signed-in user can read/write customers (upsert on save)
+    // Customers — workers upsert on save, owner can read
     match /customers/{id} {
       allow read, write: if isSignedIn();
     }
 
-    // Rates: workers read, owner writes
+    // Rates — workers read (to price washes), owner can edit
     match /rates/{id} {
       allow read: if isSignedIn();
       allow write: if isOwner();
     }
 
-    // Settings: owner only
+    // Settings — owner only
     match /settings/{id} {
       allow read, write: if isOwner();
     }
 
-    // Close-day trigger: any signed-in user can create; functions delete
+    // Close-day email trigger — any signed-in user can create
     match /emailTasks/{id} {
       allow create: if isSignedIn();
       allow read: if isOwner();
-      allow delete: if false; // Only Cloud Functions delete
+      allow delete: if false;
     }
   }
 }
