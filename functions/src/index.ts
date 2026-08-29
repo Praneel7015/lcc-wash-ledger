@@ -1,9 +1,14 @@
-import * as admin from "firebase-admin";
-import * as functions from "firebase-functions";
+import { initializeApp } from "firebase-admin/app";
+import { getFirestore, Timestamp } from "firebase-admin/firestore";
+import { getStorage } from "firebase-admin/storage";
+import { getAuth } from "firebase-admin/auth";
+import { onSchedule } from "firebase-functions/v2/scheduler";
+import { onDocumentCreated } from "firebase-functions/v2/firestore";
+import { logger } from "firebase-functions";
 import { Resend } from "resend";
 
-admin.initializeApp();
-const db = admin.firestore();
+initializeApp();
+const db = getFirestore();
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -13,7 +18,8 @@ interface Visit {
   packageId: string;
   amount: number;
   paid: boolean;
-  createdAt: admin.firestore.Timestamp;
+  voided?: boolean;
+  createdAt: Timestamp;
 }
 
 interface DaySummary {
@@ -48,8 +54,8 @@ async function computeSummary(dayStart: Date, dayEnd: Date): Promise<DaySummary>
   const snap = await db
     .collection("visits")
     .where("voided", "!=", true)
-    .where("createdAt", ">=", admin.firestore.Timestamp.fromDate(dayStart))
-    .where("createdAt", "<", admin.firestore.Timestamp.fromDate(dayEnd))
+    .where("createdAt", ">=", Timestamp.fromDate(dayStart))
+    .where("createdAt", "<", Timestamp.fromDate(dayEnd))
     .get();
 
   let revenue = 0;
@@ -132,7 +138,6 @@ async function sendDayEmail(dayStart: Date, dayEnd: Date): Promise<void> {
   const settingsDoc = await db.collection("settings").doc("app").get();
   const settings = settingsDoc.data() ?? {};
 
-  // Support both a single ownerEmail string and an ownerEmails array
   const ownerEmails: string[] = settings.ownerEmails
     ? (settings.ownerEmails as string[])
     : settings.ownerEmail
@@ -140,13 +145,13 @@ async function sendDayEmail(dayStart: Date, dayEnd: Date): Promise<void> {
     : [];
 
   if (ownerEmails.length === 0) {
-    functions.logger.warn("No owner email(s) in settings — skipping day email.");
+    logger.warn("No owner email(s) in settings — skipping day email.");
     return;
   }
 
   const summary = await computeSummary(dayStart, dayEnd);
   if (summary.total === 0) {
-    functions.logger.info("No visits today — skipping email.");
+    logger.info("No visits today — skipping email.");
     return;
   }
 
@@ -160,7 +165,7 @@ async function sendDayEmail(dayStart: Date, dayEnd: Date): Promise<void> {
 
   const apiKey = process.env.RESEND_API_KEY ?? "";
   if (!apiKey) {
-    functions.logger.error("RESEND_API_KEY not set in functions/.env.wash-ledgar — cannot send email.");
+    logger.error("RESEND_API_KEY not set — cannot send email.");
     return;
   }
 
@@ -175,53 +180,52 @@ async function sendDayEmail(dayStart: Date, dayEnd: Date): Promise<void> {
   });
 
   if (error) {
-    functions.logger.error("Resend error:", error);
+    logger.error("Resend error:", error);
     throw new Error(error.message);
   }
 
-  functions.logger.info(`Day email sent to ${ownerEmails.join(", ")} — ${summary.total} visits`);
+  logger.info(`Day email sent to ${ownerEmails.join(", ")} — ${summary.total} visits`);
+}
+
+function istMidnightToday(): Date {
+  return new Date(
+    new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" }) + "T00:00:00+05:30"
+  );
 }
 
 // ── Scheduled: runs at 9:30pm IST (16:00 UTC) every day ──────────────────────
 
-export const scheduledDayClose = functions.pubsub
-  .schedule("0 16 * * *")
-  .timeZone("Asia/Kolkata")
-  .onRun(async () => {
-    const istMidnight = new Date(
-      new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" }) + "T00:00:00+05:30"
-    );
-    await sendDayEmail(istMidnight, new Date());
-  });
+export const scheduledDayClose = onSchedule(
+  { schedule: "0 16 * * *", timeZone: "Asia/Kolkata" },
+  async () => {
+    await sendDayEmail(istMidnightToday(), new Date());
+  }
+);
 
 // ── Manual trigger: owner taps "Close day" in the app ────────────────────────
 
-export const manualDayClose = functions.firestore
-  .document("emailTasks/{id}")
-  .onCreate(async (snap) => {
-    const data = snap.data();
-    if (data.type !== "closeDay") return;
-    const istMidnight = new Date(
-      new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" }) + "T00:00:00+05:30"
-    );
-    await sendDayEmail(istMidnight, new Date());
-    await snap.ref.update({ status: "done" });
-  });
+export const manualDayClose = onDocumentCreated("emailTasks/{id}", async (event) => {
+  const snap = event.data;
+  if (!snap) return;
+  const data = snap.data();
+  if (data.type !== "closeDay") return;
+  await sendDayEmail(istMidnightToday(), new Date());
+  await snap.ref.update({ status: "done" });
+});
 
 // ── Storage lifecycle: delete photos older than 90 days ──────────────────────
 
-export const cleanOldPhotos = functions.pubsub
-  .schedule("0 2 * * *")
-  .timeZone("Asia/Kolkata")
-  .onRun(async () => {
+export const cleanOldPhotos = onSchedule(
+  { schedule: "0 2 * * *", timeZone: "Asia/Kolkata" },
+  async () => {
     const cutoff = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
     const snap = await db
       .collection("visits")
-      .where("createdAt", "<", admin.firestore.Timestamp.fromDate(cutoff))
+      .where("createdAt", "<", Timestamp.fromDate(cutoff))
       .select("platePhotoUrl", "frontPhotoUrl")
       .get();
 
-    const bucket = admin.storage().bucket();
+    const bucket = getStorage().bucket();
     let deleted = 0;
     for (const doc of snap.docs) {
       const data = doc.data();
@@ -238,5 +242,9 @@ export const cleanOldPhotos = functions.pubsub
         }
       }
     }
-    functions.logger.info(`Cleaned ${deleted} old photos`);
-  });
+    logger.info(`Cleaned ${deleted} old photos`);
+  }
+);
+
+// Export for potential admin use (not deployed as a function)
+export { getAuth };
