@@ -9,6 +9,8 @@ jobs:
   build-and-release:
     name: Build APK & Create GitHub Release
     runs-on: ubuntu-latest
+    permissions:
+      contents: write   # needed to create GitHub Releases
 
     steps:
       - name: Checkout repository
@@ -48,6 +50,9 @@ jobs:
 
       - name: Install dependencies
         run: flutter pub get
+
+      - name: Write google-services.json
+        run: echo "${{ secrets.GOOGLE_SERVICES_JSON }}" | base64 --decode > android/app/google-services.json
 
       - name: Build release APK
         run: flutter build apk --release
