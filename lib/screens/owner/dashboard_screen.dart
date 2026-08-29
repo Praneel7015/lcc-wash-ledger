@@ -236,108 +236,118 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           // Revenue Banner Card
-                          Container(
-                            padding: const EdgeInsets.all(28),
-                            decoration: BoxDecoration(
-                              color: WashTheme.surfaceCard,
-                              borderRadius: BorderRadius.circular(24),
-                              border: Border.all(color: WashTheme.border),
-                              gradient: LinearGradient(
-                                colors: [
-                                  WashTheme.surfaceCard,
-                                  WashTheme.surfaceHigh.withValues(alpha: 0.6),
-                                ],
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
+                          LayoutBuilder(builder: (context, bc) {
+                            final narrow = bc.maxWidth < 480;
+                            final revenueFont = narrow ? 36.0 : 46.0;
+                            final closeDayBtn = ElevatedButton.icon(
+                              onPressed: () => _closeDay(context, ref),
+                              icon: const Icon(
+                                  Icons.mark_email_read_outlined, size: 16),
+                              label: const Text('Close Day'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor:
+                                    WashTheme.accent.withValues(alpha: 0.15),
+                                foregroundColor: WashTheme.accent,
+                                elevation: 0,
+                                minimumSize: Size(narrow ? double.infinity : 0, 38),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 14, vertical: 8),
+                                side: BorderSide(
+                                    color:
+                                        WashTheme.accent.withValues(alpha: 0.3)),
+                                textStyle: const TextStyle(
+                                    fontSize: 13, fontWeight: FontWeight.w700),
                               ),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    const Text(
-                                      'TODAY\'S REVENUE',
-                                      style: TextStyle(
-                                        color: WashTheme.textSecondary,
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w700,
-                                        letterSpacing: 1.2,
-                                      ),
-                                    ),
-                                    ElevatedButton.icon(
-                                      onPressed: () => _closeDay(context, ref),
-                                      icon: const Icon(
-                                          Icons.mark_email_read_outlined,
-                                          size: 16),
-                                      label: const Text('Close Day Report'),
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor:
-                                            WashTheme.accent.withValues(alpha: 0.15),
-                                        foregroundColor: WashTheme.accent,
-                                        elevation: 0,
-                                        minimumSize: const Size(0, 38),
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 14, vertical: 8),
-                                        side: BorderSide(
-                                            color: WashTheme.accent
-                                                .withValues(alpha: 0.3)),
-                                        textStyle: const TextStyle(
-                                            fontSize: 13,
-                                            fontWeight: FontWeight.w700),
-                                      ),
-                                    ),
+                            );
+                            return Container(
+                              padding: EdgeInsets.all(narrow ? 20 : 28),
+                              decoration: BoxDecoration(
+                                color: WashTheme.surfaceCard,
+                                borderRadius: BorderRadius.circular(24),
+                                border: Border.all(color: WashTheme.border),
+                                gradient: LinearGradient(
+                                  colors: [
+                                    WashTheme.surfaceCard,
+                                    WashTheme.surfaceHigh.withValues(alpha: 0.6),
                                   ],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
                                 ),
-                                const SizedBox(height: 8),
-                                Row(
-                                  crossAxisAlignment: CrossAxisAlignment.baseline,
-                                  textBaseline: TextBaseline.alphabetic,
-                                  children: [
-                                    Text(
-                                      '₹$totalRevenue',
-                                      style: const TextStyle(
-                                        color: WashTheme.accent,
-                                        fontSize: 46,
-                                        fontWeight: FontWeight.w900,
-                                        letterSpacing: -1.5,
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      const Text(
+                                        'TODAY\'S REVENUE',
+                                        style: TextStyle(
+                                          color: WashTheme.textSecondary,
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w700,
+                                          letterSpacing: 1.2,
+                                        ),
                                       ),
-                                    ),
-                                    const SizedBox(width: 12),
-                                    Text(
-                                      'across ${allVisits.length} washes',
-                                      style: const TextStyle(
-                                        color: WashTheme.textSecondary,
-                                        fontSize: 15,
-                                        fontWeight: FontWeight.w500,
+                                      if (!narrow) closeDayBtn,
+                                    ],
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.baseline,
+                                    textBaseline: TextBaseline.alphabetic,
+                                    children: [
+                                      Text(
+                                        '₹$totalRevenue',
+                                        style: TextStyle(
+                                          color: WashTheme.accent,
+                                          fontSize: revenueFont,
+                                          fontWeight: FontWeight.w900,
+                                          letterSpacing: -1.5,
+                                        ),
                                       ),
-                                    ),
+                                      const SizedBox(width: 10),
+                                      Flexible(
+                                        child: Text(
+                                          'across ${allVisits.length} wash${allVisits.length == 1 ? '' : 'es'}',
+                                          style: const TextStyle(
+                                            color: WashTheme.textSecondary,
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 14),
+                                  Wrap(
+                                    spacing: 10,
+                                    runSpacing: 8,
+                                    children: [
+                                      _StatusPill(
+                                        label: 'Collected',
+                                        amount: '₹$paidRevenue',
+                                        color: WashTheme.success,
+                                      ),
+                                      _StatusPill(
+                                        label: 'Pending',
+                                        amount: '₹$pendingRevenue',
+                                        color: pendingRevenue > 0
+                                            ? WashTheme.danger
+                                            : WashTheme.textSecondary,
+                                      ),
+                                    ],
+                                  ),
+                                  if (narrow) ...[
+                                    const SizedBox(height: 16),
+                                    closeDayBtn,
                                   ],
-                                ),
-                                const SizedBox(height: 16),
-                                // Cash collection indicator
-                                Row(
-                                  children: [
-                                    _StatusPill(
-                                      label: 'Collected',
-                                      amount: '₹$paidRevenue',
-                                      color: WashTheme.success,
-                                    ),
-                                    const SizedBox(width: 12),
-                                    _StatusPill(
-                                      label: 'Pending',
-                                      amount: '₹$pendingRevenue',
-                                      color: pendingRevenue > 0
-                                          ? WashTheme.danger
-                                          : WashTheme.textSecondary,
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
+                                ],
+                              ),
+                            );
+                          }),
                           const SizedBox(height: 16),
 
                           // Vehicle breakdown chips
@@ -416,45 +426,68 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                           const SizedBox(height: 24),
 
                           // Search & Filter header
-                          Row(
-                            children: [
-                              Text(
-                                'Live Vehicle Log (${visits.length})',
-                                style: const TextStyle(
-                                  color: WashTheme.textPrimary,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w800,
+                          LayoutBuilder(builder: (context, bc) {
+                            final narrow = bc.maxWidth < 540;
+                            final searchField = TextField(
+                              onChanged: (v) =>
+                                  setState(() => _searchQuery = v),
+                              style: const TextStyle(fontSize: 13),
+                              decoration: InputDecoration(
+                                hintText: 'Search plate or phone…',
+                                hintStyle: const TextStyle(
+                                    fontSize: 12,
+                                    color: WashTheme.textMuted),
+                                prefixIcon: const Icon(Icons.search,
+                                    size: 18,
+                                    color: WashTheme.textSecondary),
+                                contentPadding:
+                                    const EdgeInsets.symmetric(
+                                        horizontal: 12, vertical: 8),
+                                fillColor: WashTheme.surfaceCard,
+                                border: OutlineInputBorder(
+                                  borderRadius:
+                                      BorderRadius.circular(10),
+                                  borderSide: const BorderSide(
+                                      color: WashTheme.border),
                                 ),
                               ),
-                              const Spacer(),
-                              SizedBox(
-                                width: 240,
-                                height: 40,
-                                child: TextField(
-                                  onChanged: (v) =>
-                                      setState(() => _searchQuery = v),
-                                  style: const TextStyle(fontSize: 13),
-                                  decoration: InputDecoration(
-                                    hintText: 'Search plate or phone...',
-                                    hintStyle: const TextStyle(
-                                        fontSize: 12,
-                                        color: WashTheme.textMuted),
-                                    prefixIcon: const Icon(Icons.search,
-                                        size: 18,
-                                        color: WashTheme.textSecondary),
-                                    contentPadding: const EdgeInsets.symmetric(
-                                        horizontal: 12, vertical: 8),
-                                    fillColor: WashTheme.surfaceCard,
-                                    border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(10),
-                                      borderSide: const BorderSide(
-                                          color: WashTheme.border),
+                            );
+                            if (narrow) {
+                              return Column(
+                                crossAxisAlignment:
+                                    CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Live Log (${visits.length})',
+                                    style: const TextStyle(
+                                      color: WashTheme.textPrimary,
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w800,
                                     ),
                                   ),
+                                  const SizedBox(height: 10),
+                                  SizedBox(height: 40, child: searchField),
+                                ],
+                              );
+                            }
+                            return Row(
+                              children: [
+                                Text(
+                                  'Live Vehicle Log (${visits.length})',
+                                  style: const TextStyle(
+                                    color: WashTheme.textPrimary,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w800,
+                                  ),
                                 ),
-                              ),
-                            ],
-                          ),
+                                const Spacer(),
+                                SizedBox(
+                                    width: 240,
+                                    height: 40,
+                                    child: searchField),
+                              ],
+                            );
+                          }),
                         ],
                       ),
                     ),
@@ -694,156 +727,193 @@ class _VisitTile extends StatelessWidget {
               borderRadius: BorderRadius.circular(16),
               border: Border.all(color: WashTheme.border),
             ),
-            child: Row(
-              children: [
-                // Authentic License Plate Badge
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                  decoration: BoxDecoration(
-                    color: WashTheme.plateYellow,
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: WashTheme.plateBlack, width: 2),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.2),
-                        blurRadius: 4,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 2, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: WashTheme.plateBlue,
-                          borderRadius: BorderRadius.circular(2),
-                        ),
-                        child: const Text(
-                          'IND',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 7,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        visit.plate,
-                        style: const TextStyle(
-                          color: WashTheme.plateBlack,
-                          fontWeight: FontWeight.w900,
-                          fontSize: 14,
-                          letterSpacing: 1.5,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 16),
+            child: LayoutBuilder(builder: (context, bc) {
+              final narrow = bc.maxWidth < 400;
 
-                // Vehicle Details
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Text(
-                            VehicleType.emoji(visit.vehicleType),
-                            style: const TextStyle(fontSize: 14),
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            '${VehicleType.label(visit.vehicleType)} • ${WashPackage.label(visit.packageId)}',
-                            style: const TextStyle(
-                              color: WashTheme.textPrimary,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          Text(
-                            time,
-                            style: const TextStyle(
-                              color: WashTheme.textMuted,
-                              fontSize: 12,
-                            ),
-                          ),
-                          if (visit.phone != null && visit.phone!.isNotEmpty) ...[
-                            const SizedBox(width: 8),
-                            const Text('•',
-                                style: TextStyle(
-                                    color: WashTheme.textMuted, fontSize: 10)),
-                            const SizedBox(width: 8),
-                            Text(
-                              visit.phone!,
-                              style: const TextStyle(
-                                color: WashTheme.textSecondary,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-
-                // Price & Payment Tag
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      '₹${visit.amount}',
-                      style: const TextStyle(
-                        color: WashTheme.textPrimary,
-                        fontSize: 17,
-                        fontWeight: FontWeight.w900,
-                      ),
+              // ── Plate badge ─────────────────────────────────────────
+              final plateBadge = Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: WashTheme.plateYellow,
+                  borderRadius: BorderRadius.circular(6),
+                  border:
+                      Border.all(color: WashTheme.plateBlack, width: 2),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.2),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
                     ),
-                    const SizedBox(height: 4),
+                  ],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
                     Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 3),
+                          horizontal: 2, vertical: 2),
                       decoration: BoxDecoration(
-                        color: visit.paid
-                            ? WashTheme.success.withValues(alpha: 0.15)
-                            : WashTheme.danger.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(
-                          color: visit.paid
-                              ? WashTheme.success.withValues(alpha: 0.3)
-                              : WashTheme.danger.withValues(alpha: 0.3),
+                        color: WashTheme.plateBlue,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                      child: const Text(
+                        'IND',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 7,
+                          fontWeight: FontWeight.w900,
                         ),
                       ),
-                      child: Text(
-                        visit.paid ? 'PAID' : 'UNPAID',
-                        style: TextStyle(
-                          color: visit.paid
-                              ? WashTheme.success
-                              : WashTheme.danger,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 0.5,
-                        ),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      visit.plate,
+                      style: const TextStyle(
+                        color: WashTheme.plateBlack,
+                        fontWeight: FontWeight.w900,
+                        fontSize: 14,
+                        letterSpacing: 1.5,
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(width: 8),
-                const Icon(Icons.chevron_right_rounded,
-                    color: WashTheme.textMuted, size: 20),
-              ],
-            ),
+              );
+
+              // ── Price + paid badge ───────────────────────────────────
+              final priceCol = Row(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        '₹${visit.amount}',
+                        style: const TextStyle(
+                          color: WashTheme.textPrimary,
+                          fontSize: 17,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: visit.paid
+                              ? WashTheme.success.withValues(alpha: 0.15)
+                              : WashTheme.danger.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(
+                            color: visit.paid
+                                ? WashTheme.success.withValues(alpha: 0.3)
+                                : WashTheme.danger.withValues(alpha: 0.3),
+                          ),
+                        ),
+                        child: Text(
+                          visit.paid ? 'PAID' : 'UNPAID',
+                          style: TextStyle(
+                            color: visit.paid
+                                ? WashTheme.success
+                                : WashTheme.danger,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(width: 8),
+                  const Icon(Icons.chevron_right_rounded,
+                      color: WashTheme.textMuted, size: 20),
+                ],
+              );
+
+              // ── Details text ─────────────────────────────────────────
+              final detailsText = Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        VehicleType.emoji(visit.vehicleType),
+                        style: const TextStyle(fontSize: 13),
+                      ),
+                      const SizedBox(width: 5),
+                      Flexible(
+                        child: Text(
+                          '${VehicleType.label(visit.vehicleType)} · ${WashPackage.label(visit.packageId)}',
+                          style: const TextStyle(
+                            color: WashTheme.textPrimary,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 3),
+                  Wrap(
+                    spacing: 6,
+                    children: [
+                      Text(
+                        time,
+                        style: const TextStyle(
+                          color: WashTheme.textMuted,
+                          fontSize: 12,
+                        ),
+                      ),
+                      if (visit.phone != null &&
+                          visit.phone!.isNotEmpty) ...[
+                        const Text('·',
+                            style: TextStyle(
+                                color: WashTheme.textMuted,
+                                fontSize: 12)),
+                        Text(
+                          visit.phone!,
+                          style: const TextStyle(
+                            color: WashTheme.textSecondary,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ],
+              );
+
+              if (narrow) {
+                // Two-row layout for small phones
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        plateBadge,
+                        priceCol,
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    detailsText,
+                  ],
+                );
+              }
+
+              // Wide layout — single row
+              return Row(
+                children: [
+                  plateBadge,
+                  const SizedBox(width: 14),
+                  Expanded(child: detailsText),
+                  const SizedBox(width: 12),
+                  priceCol,
+                ],
+              );
+            }),
           ),
         ),
       ),
