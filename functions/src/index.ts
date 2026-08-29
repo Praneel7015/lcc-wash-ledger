@@ -151,13 +151,13 @@ async function sendDayEmail(dayStart: Date, dayEnd: Date): Promise<void> {
     timeZone: "Asia/Kolkata",
   });
 
-  const apiKey = process.env.RESEND_API_KEY ?? functions.config().resend?.api_key ?? "";
+  const apiKey = process.env.RESEND_API_KEY ?? "";
   if (!apiKey) {
-    functions.logger.error("RESEND_API_KEY not set — cannot send email.");
+    functions.logger.error("RESEND_API_KEY not set in functions/.env.wash-ledgar — cannot send email.");
     return;
   }
 
-  const fromAddress = process.env.RESEND_FROM ?? functions.config().resend?.from ?? "WashLog <reports@resend.dev>";
+  const fromAddress = process.env.RESEND_FROM ?? "WashLog <reports@sindhole.com>";
 
   const resend = new Resend(apiKey);
   const { error } = await resend.emails.send({
