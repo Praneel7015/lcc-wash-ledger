@@ -33,11 +33,19 @@ android {
 
     defaultConfig {
         applicationId "com.washlog.app"
-        minSdkVersion flutter.minSdkVersion
+        // API 21 = Android 5.0 — covers 99%+ of active devices
+        minSdkVersion 21
         targetSdk 36
         versionCode flutterVersionCode.toInteger()
         versionName flutterVersionName
         multiDexEnabled true
+
+        ndk {
+            // arm64-v8a  → all modern phones (2016+)
+            // armeabi-v7a → older/budget phones
+            // x86_64 is emulator-only; omitting it shrinks the fat APK
+            abiFilters "arm64-v8a", "armeabi-v7a"
+        }
     }
 
     buildTypes {
@@ -54,7 +62,6 @@ flutter {
 }
 
 dependencies {
-    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:2.3.20"
     implementation platform('com.google.firebase:firebase-bom:33.0.0')
     implementation 'com.google.firebase:firebase-analytics'
     implementation 'androidx.multidex:multidex:2.0.1'

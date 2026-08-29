@@ -74,7 +74,7 @@ class ShakeService : Service(), SensorEventListener {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 channelId,
-                "WashLog ready",
+                "Luxury Car Care",
                 NotificationManager.IMPORTANCE_LOW
             ).apply { description = "Shake your phone to log a vehicle" }
             getSystemService(NotificationManager::class.java)
@@ -86,7 +86,7 @@ class ShakeService : Service(), SensorEventListener {
             PendingIntent.FLAG_IMMUTABLE
         )
         return NotificationCompat.Builder(this, channelId)
-            .setContentTitle("WashLog ready")
+            .setContentTitle("Luxury Car Care")
             .setContentText("Shake to start a new wash")
             .setSmallIcon(android.R.drawable.ic_menu_camera)
             .setContentIntent(launchIntent)

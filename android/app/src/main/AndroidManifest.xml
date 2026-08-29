@@ -5,11 +5,12 @@
     <uses-permission android:name="android.permission.CAMERA"/>
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32"/>
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>
-    <!-- Shake detection (accelerometer — no explicit permission needed) -->
     <!-- Internet -->
     <uses-permission android:name="android.permission.INTERNET"/>
     <!-- Foreground service for shake detection -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+    <!-- Required on API 34+ for dataSync foreground service type -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC"/>
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <!-- Vibration for shake feedback -->
     <uses-permission android:name="android.permission.VIBRATE"/>
