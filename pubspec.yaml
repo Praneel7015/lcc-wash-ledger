@@ -14,7 +14,6 @@ dependencies:
   firebase_core: ^3.6.0
   firebase_auth: ^5.3.1
   cloud_firestore: ^5.4.4
-  firebase_storage: ^12.3.2
 
   # State management & routing
   flutter_riverpod: ^2.5.1
@@ -31,7 +30,6 @@ dependencies:
   # UI helpers
   intl: ^0.19.0
   fl_chart: ^0.69.0
-  cached_network_image: ^3.4.1
   gap: ^3.0.1
 
   # Utilities

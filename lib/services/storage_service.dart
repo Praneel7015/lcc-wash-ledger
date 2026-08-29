@@ -1,15 +1,15 @@
-// Firebase Storage service — upload and compress photos.
+// Photo storage — compresses images and stores them as base64 in Firestore.
+// Firebase Storage requires a paid plan; this keeps everything on the free tier.
 
+import 'dart:convert';
 import 'dart:typed_data';
 
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
-import 'package:uuid/uuid.dart';
 
 class StorageService {
-  final _storage = FirebaseStorage.instance;
-  final _uuid = const Uuid();
-
+  /// Compresses [bytes] and returns a data-URI string
+  /// (data:image/jpeg;base64,<encoded>) suitable for storing in Firestore
+  /// and rendering with [Image.memory] after base64 decoding.
   Future<String> uploadPhoto({
     required Uint8List bytes,
     required String folder,
@@ -17,26 +17,21 @@ class StorageService {
   }) async {
     final compressed = await FlutterImageCompress.compressWithList(
       bytes,
-      minWidth: 1280,
-      minHeight: 720,
-      quality: 70,
+      minWidth: 800,
+      minHeight: 600,
+      quality: 60,
       format: CompressFormat.jpeg,
     );
 
-    final filename = '${_uuid.v4()}.jpg';
-    final ref = _storage.ref('$folder/$plate/$filename');
+    final encoded = base64Encode(compressed);
+    return 'data:image/jpeg;base64,$encoded';
+  }
 
-    await ref.putData(
-      Uint8List.fromList(compressed),
-      SettableMetadata(
-        contentType: 'image/jpeg',
-        customMetadata: {
-          'plate': plate,
-          'uploadedAt': DateTime.now().toIso8601String(),
-        },
-      ),
-    );
-
-    return await ref.getDownloadURL();
+  /// Decodes a data-URI back to raw bytes for [Image.memory].
+  static Uint8List? decodeDataUri(String? dataUri) {
+    if (dataUri == null || !dataUri.startsWith('data:image')) return null;
+    final comma = dataUri.indexOf(',');
+    if (comma == -1) return null;
+    return base64Decode(dataUri.substring(comma + 1));
   }
 }

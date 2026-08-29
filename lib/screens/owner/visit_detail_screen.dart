@@ -1,8 +1,9 @@
 // Visit detail — shows plate photo, front photo, all fields, void button.
 
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/constants.dart';
@@ -228,6 +229,7 @@ class _PhotoCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final Uint8List? bytes = StorageService.decodeDataUri(url);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -237,27 +239,12 @@ class _PhotoCard extends StatelessWidget {
         const SizedBox(height: 6),
         ClipRRect(
           borderRadius: BorderRadius.circular(10),
-          child: url != null
-              ? CachedNetworkImage(
-                  imageUrl: url!,
+          child: bytes != null
+              ? Image.memory(
+                  bytes,
                   height: 140,
                   width: double.infinity,
                   fit: BoxFit.cover,
-                  placeholder: (_, __) => Container(
-                    height: 140,
-                    color: WashTheme.surfaceHigh,
-                    child: const Center(
-                        child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: WashTheme.accent)),
-                  ),
-                  errorWidget: (_, __, ___) => Container(
-                    height: 140,
-                    color: WashTheme.surfaceHigh,
-                    child: const Center(
-                        child: Icon(Icons.broken_image,
-                            color: WashTheme.textSecondary)),
-                  ),
                 )
               : Container(
                   height: 140,

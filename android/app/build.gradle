@@ -31,10 +31,6 @@ android {
         jvmTarget = '17'
     }
 
-    sourceSets {
-        main.java.srcDirs += 'src/main/kotlin'
-    }
-
     defaultConfig {
         applicationId "com.washlog.app"
         minSdkVersion flutter.minSdkVersion
@@ -58,7 +54,7 @@ flutter {
 }
 
 dependencies {
-    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:2.2.20"
+    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:2.3.20"
     implementation platform('com.google.firebase:firebase-bom:33.0.0')
     implementation 'com.google.firebase:firebase-analytics'
     implementation 'androidx.multidex:multidex:2.0.1'

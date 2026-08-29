@@ -44,7 +44,7 @@
 
         <!-- Shake foreground service -->
         <service
-            android:name=".ShakeForegroundService"
+            android:name=".ShakeService"
             android:exported="false"
             android:foregroundServiceType="shortService"/>
 
