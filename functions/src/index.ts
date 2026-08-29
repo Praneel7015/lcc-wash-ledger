@@ -131,9 +131,16 @@ function buildEmailHtml(summary: DaySummary, dateLabel: string): string {
 async function sendDayEmail(dayStart: Date, dayEnd: Date): Promise<void> {
   const settingsDoc = await db.collection("settings").doc("app").get();
   const settings = settingsDoc.data() ?? {};
-  const ownerEmail: string = settings.ownerEmail ?? "";
-  if (!ownerEmail) {
-    functions.logger.warn("No owner email in settings — skipping day email.");
+
+  // Support both a single ownerEmail string and an ownerEmails array
+  const ownerEmails: string[] = settings.ownerEmails
+    ? (settings.ownerEmails as string[])
+    : settings.ownerEmail
+    ? [settings.ownerEmail as string]
+    : [];
+
+  if (ownerEmails.length === 0) {
+    functions.logger.warn("No owner email(s) in settings — skipping day email.");
     return;
   }
 
@@ -162,7 +169,7 @@ async function sendDayEmail(dayStart: Date, dayEnd: Date): Promise<void> {
   const resend = new Resend(apiKey);
   const { error } = await resend.emails.send({
     from: fromAddress,
-    to: ownerEmail,
+    to: ownerEmails,
     subject: `WashLog — ${summary.total} washes · ${dateLabel}`,
     html: buildEmailHtml(summary, dateLabel),
   });
@@ -172,7 +179,7 @@ async function sendDayEmail(dayStart: Date, dayEnd: Date): Promise<void> {
     throw new Error(error.message);
   }
 
-  functions.logger.info(`Day email sent to ${ownerEmail} — ${summary.total} visits`);
+  functions.logger.info(`Day email sent to ${ownerEmails.join(", ")} — ${summary.total} visits`);
 }
 
 // ── Scheduled: runs at 9:30pm IST (16:00 UTC) every day ──────────────────────
