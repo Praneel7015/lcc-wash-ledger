@@ -212,7 +212,7 @@ async function sendDayEmail(dayStart: Date, dayEnd: Date): Promise<void> {
     return;
   }
 
-  const fromAddress = process.env.RESEND_FROM ?? "Luxury Car Care <lcc@sindhole.com>";
+  const fromAddress = process.env.RESEND_FROM ?? "Luxury Car Care <wash@sindhole.com>";
 
   const resend = new Resend(apiKey);
   const { error } = await resend.emails.send({
