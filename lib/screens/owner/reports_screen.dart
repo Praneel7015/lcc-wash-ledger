@@ -7,8 +7,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import 'package:pdf/pdf.dart';
-import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -17,6 +15,7 @@ import '../../core/theme.dart';
 import '../../models/visit.dart';
 import '../../providers/packages_provider.dart';
 import '../../services/providers.dart';
+import '../../services/report_pdf_service.dart';
 
 enum ReportRange { today, week, month, custom }
 
@@ -168,225 +167,26 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     final visits = _visits ?? [];
     if (visits.isEmpty) return;
 
-    final r = _effectiveRange;
-    final rangeLabel =
-        '${DateFormat('d MMM yyyy').format(r.start)} – ${DateFormat('d MMM yyyy').format(r.end)}';
-    final breakdown = computeRevenueBreakdown(visits);
-    final totalRevenue = breakdown.total;
-    final cashRevenue = breakdown.cash;
-    final upiRevenue = breakdown.upi;
-    final unknownRevenue = breakdown.unknown;
-    final pendingRevenue = breakdown.pending;
-    final countByType = <String, int>{};
-    final revenueByType = <String, int>{};
-    final countByPkg = <String, int>{};
-    for (final v in visits) {
-      countByType[v.vehicleType] = (countByType[v.vehicleType] ?? 0) + 1;
-      revenueByType[v.vehicleType] =
-          (revenueByType[v.vehicleType] ?? 0) + v.amount;
-      countByPkg[v.packageId] = (countByPkg[v.packageId] ?? 0) + 1;
-    }
+    final input = ReportPdfInput(
+      range: _effectiveRange,
+      visits: visits,
+      packageLabels: labels,
+      breakdown: computeRevenueBreakdown(visits),
+    );
 
-    final packages = await ref.read(packagesProvider.future);
-    final packageIds = _packageIdsForBreakdown(packages, countByPkg);
+    final bytes = await ReportPdfService.build(input);
+    final filename = ReportPdfService.filenameFor(input);
 
-    final pdf = pw.Document();
-    const gold = PdfColor.fromInt(0xFFC9952A);
-    const dark = PdfColor.fromInt(0xFF1C1917);
-    const bg = PdfColor.fromInt(0xFF0F0E0D);
-    const textPrimary = PdfColor.fromInt(0xFFFAFAF8);
-    const textSecondary = PdfColor.fromInt(0xFF9C9489);
-    const successColor = PdfColor.fromInt(0xFF10B981);
-    const dangerColor = PdfColor.fromInt(0xFFF43F5E);
-    const border = PdfColor.fromInt(0xFF3A322A);
-
-    pw.Widget kpiCard(String label, String value, PdfColor color) =>
-        pw.Container(
-          margin: const pw.EdgeInsets.only(bottom: 8),
-          padding: const pw.EdgeInsets.all(14),
-          decoration: pw.BoxDecoration(
-            color: bg,
-            borderRadius: pw.BorderRadius.circular(8),
-            border: pw.Border.all(color: border),
-          ),
-          child: pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
-            children: [
-              pw.Text(label,
-                  style: pw.TextStyle(
-                      color: textSecondary,
-                      fontSize: 9,
-                      letterSpacing: 1.2)),
-              pw.SizedBox(height: 4),
-              pw.Text(value,
-                  style: pw.TextStyle(
-                      color: color, fontSize: 22, fontWeight: pw.FontWeight.bold)),
-            ],
-          ),
-        );
-
-    pw.Widget breakdownRow(String label, int count, int total, {int? revenue}) {
-      final pct = total > 0 ? (count / total * 100).round() : 0;
-      return pw.Container(
-        margin: const pw.EdgeInsets.only(bottom: 6),
-        padding: const pw.EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: pw.BoxDecoration(
-          color: bg,
-          borderRadius: pw.BorderRadius.circular(6),
-          border: pw.Border.all(color: border),
-        ),
-        child: pw.Row(
-          children: [
-            pw.Expanded(
-              child: pw.Text(label,
-                  style: pw.TextStyle(
-                      color: textPrimary,
-                      fontSize: 11,
-                      fontWeight: pw.FontWeight.bold)),
-            ),
-            pw.Text('$count ($pct%)',
-                style: pw.TextStyle(color: textSecondary, fontSize: 11)),
-            if (revenue != null) ...[
-              pw.SizedBox(width: 16),
-              pw.Text('₹$revenue',
-                  style: pw.TextStyle(
-                      color: gold,
-                      fontSize: 12,
-                      fontWeight: pw.FontWeight.bold)),
-            ],
-          ],
-        ),
+    if (kIsWeb) {
+      final blob = Uri.dataFromBytes(
+        bytes,
+        mimeType: 'application/pdf',
+        parameters: {'filename': filename},
       );
+      await launchUrl(blob);
+    } else {
+      await Printing.sharePdf(bytes: bytes, filename: filename);
     }
-
-    pdf.addPage(
-      pw.MultiPage(
-        pageFormat: PdfPageFormat.a4,
-        margin: const pw.EdgeInsets.all(32),
-        build: (ctx) => [
-          // Header
-          pw.Container(
-            padding: const pw.EdgeInsets.all(20),
-            decoration: pw.BoxDecoration(
-              color: dark,
-              borderRadius: pw.BorderRadius.circular(12),
-              border: pw.Border.all(color: gold, width: 2),
-            ),
-            child: pw.Column(
-              crossAxisAlignment: pw.CrossAxisAlignment.start,
-              children: [
-                pw.Row(children: [
-                  pw.Text('LUXURY ',
-                      style: pw.TextStyle(
-                          color: textPrimary,
-                          fontSize: 22,
-                          fontWeight: pw.FontWeight.bold)),
-                  pw.Text('CAR CARE',
-                      style: pw.TextStyle(
-                          color: gold,
-                          fontSize: 22,
-                          fontWeight: pw.FontWeight.bold)),
-                ]),
-                pw.SizedBox(height: 4),
-                pw.Text('Analytics Report · $rangeLabel',
-                    style: pw.TextStyle(color: textSecondary, fontSize: 10)),
-              ],
-            ),
-          ),
-          pw.SizedBox(height: 16),
-
-          // KPI cards
-          kpiCard('TOTAL REVENUE', '₹$totalRevenue', gold),
-          kpiCard('COLLECTED CASH', '₹$cashRevenue', successColor),
-          kpiCard('COLLECTED UPI', '₹$upiRevenue', gold),
-          if (unknownRevenue > 0)
-            kpiCard('UNKNOWN METHOD', '₹$unknownRevenue', textSecondary),
-          kpiCard('PENDING BALANCE', '₹$pendingRevenue', dangerColor),
-          kpiCard('TOTAL WASHES', '${visits.length}', textPrimary),
-          pw.SizedBox(height: 16),
-
-          // By vehicle type
-          pw.Text('VOLUME & REVENUE BY VEHICLE TYPE',
-              style: pw.TextStyle(
-                  color: textSecondary, fontSize: 9, letterSpacing: 1.2)),
-          pw.SizedBox(height: 6),
-          ...VehicleType.all.map((type) => breakdownRow(
-                VehicleType.label(type),
-                countByType[type] ?? 0,
-                visits.length,
-                revenue: revenueByType[type] ?? 0,
-              )),
-          pw.SizedBox(height: 16),
-
-          // By package
-          pw.Text('SERVICE PACKAGE DISTRIBUTION',
-              style: pw.TextStyle(
-                  color: textSecondary, fontSize: 9, letterSpacing: 1.2)),
-          pw.SizedBox(height: 6),
-          ...packageIds.map((pkg) => breakdownRow(
-                _packageLabel(pkg, labels),
-                countByPkg[pkg] ?? 0,
-                visits.length,
-              )),
-          pw.SizedBox(height: 24),
-
-          // Visit table
-          pw.Text('VISIT LOG',
-              style: pw.TextStyle(
-                  color: textSecondary, fontSize: 9, letterSpacing: 1.2)),
-          pw.SizedBox(height: 6),
-          pw.Table(
-            border: pw.TableBorder.all(color: border, width: 0.5),
-            columnWidths: {
-              0: const pw.FlexColumnWidth(1.5),
-              1: const pw.FlexColumnWidth(2),
-              2: const pw.FlexColumnWidth(2.2),
-              3: const pw.FlexColumnWidth(1),
-              4: const pw.FlexColumnWidth(0.8),
-              5: const pw.FlexColumnWidth(0.8),
-            },
-            children: [
-              pw.TableRow(
-                decoration: pw.BoxDecoration(color: dark),
-                children: ['Date', 'Plate', 'Package', 'Amount', 'Paid', 'Paid by']
-                    .map((h) => pw.Padding(
-                          padding: const pw.EdgeInsets.all(6),
-                          child: pw.Text(h,
-                              style: pw.TextStyle(
-                                  color: gold,
-                                  fontSize: 9,
-                                  fontWeight: pw.FontWeight.bold)),
-                        ))
-                    .toList(),
-              ),
-              ...visits.map((v) => pw.TableRow(
-                    children: [
-                      DateFormat('dd/MM/yy').format(v.createdAt),
-                      v.plate,
-                      _packageLabel(v.packageId, labels),
-                      '₹${v.amount}',
-                      v.paid ? 'Yes' : 'No',
-                      PaymentMethod.reportLabel(paid: v.paid, method: v.paymentMethod),
-                    ]
-                        .map((cell) => pw.Padding(
-                              padding: const pw.EdgeInsets.all(6),
-                              child: pw.Text(cell,
-                                  style: pw.TextStyle(
-                                      color: textPrimary, fontSize: 9)),
-                            ))
-                        .toList(),
-                  )),
-            ],
-          ),
-        ],
-      ),
-    );
-
-    await Printing.sharePdf(
-      bytes: await pdf.save(),
-      filename:
-          'lcc-report-${DateFormat('yyyy-MM-dd').format(r.start)}-${DateFormat('yyyy-MM-dd').format(r.end)}.pdf',
-    );
   }
 
   @override
