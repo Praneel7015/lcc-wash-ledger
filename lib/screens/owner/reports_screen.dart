@@ -15,6 +15,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../core/constants.dart';
 import '../../core/theme.dart';
 import '../../models/visit.dart';
+import '../../providers/packages_provider.dart';
 import '../../services/providers.dart';
 
 enum ReportRange { today, week, month, custom }
@@ -94,7 +95,40 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     }
   }
 
-  void _exportCsv() {
+  Future<Map<String, String>> _loadPackageLabels() async {
+    final packages = await ref.read(packagesProvider.future);
+    return {
+      for (final p in packages) p['id'] as String: p['label'] as String,
+    };
+  }
+
+  String _packageLabel(String id, Map<String, String> labels) =>
+      labels[id] ?? WashPackage.label(id);
+
+  /// Live packages from Firestore, plus any legacy IDs still present in visits.
+  List<String> _packageIdsForBreakdown(
+    List<Map<String, dynamic>>? packages,
+    Map<String, int> countByPkg,
+  ) {
+    final ids = <String>[];
+    final seen = <String>{};
+    if (packages != null) {
+      for (final p in packages) {
+        final id = p['id'] as String;
+        ids.add(id);
+        seen.add(id);
+      }
+    }
+    for (final id in countByPkg.keys) {
+      if (!seen.contains(id)) {
+        ids.add(id);
+        seen.add(id);
+      }
+    }
+    return ids;
+  }
+
+  void _exportCsv(Map<String, String> labels) {
     if (_visits == null || _visits!.isEmpty) return;
     final rows = [
       [
@@ -113,7 +147,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
             DateFormat('HH:mm').format(v.createdAt),
             v.plate,
             VehicleType.label(v.vehicleType),
-            WashPackage.label(v.packageId),
+            _packageLabel(v.packageId, labels),
             v.amount,
             v.paid ? 'Yes' : 'No',
             PaymentMethod.reportLabel(paid: v.paid, method: v.paymentMethod),
@@ -130,7 +164,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     }
   }
 
-  Future<void> _exportPdf() async {
+  Future<void> _exportPdf(Map<String, String> labels) async {
     final visits = _visits ?? [];
     if (visits.isEmpty) return;
 
@@ -152,6 +186,9 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
           (revenueByType[v.vehicleType] ?? 0) + v.amount;
       countByPkg[v.packageId] = (countByPkg[v.packageId] ?? 0) + 1;
     }
+
+    final packages = await ref.read(packagesProvider.future);
+    final packageIds = _packageIdsForBreakdown(packages, countByPkg);
 
     final pdf = pw.Document();
     const gold = PdfColor.fromInt(0xFFC9952A);
@@ -286,8 +323,8 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
               style: pw.TextStyle(
                   color: textSecondary, fontSize: 9, letterSpacing: 1.2)),
           pw.SizedBox(height: 6),
-          ...WashPackage.all.map((pkg) => breakdownRow(
-                WashPackage.label(pkg),
+          ...packageIds.map((pkg) => breakdownRow(
+                _packageLabel(pkg, labels),
                 countByPkg[pkg] ?? 0,
                 visits.length,
               )),
@@ -326,7 +363,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                     children: [
                       DateFormat('dd/MM/yy').format(v.createdAt),
                       v.plate,
-                      WashPackage.label(v.packageId),
+                      _packageLabel(v.packageId, labels),
                       '₹${v.amount}',
                       v.paid ? 'Yes' : 'No',
                       PaymentMethod.reportLabel(paid: v.paid, method: v.paymentMethod),
@@ -355,6 +392,11 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
   @override
   Widget build(BuildContext context) {
     final visits = _visits ?? [];
+    final packagesAsync = ref.watch(packagesProvider);
+    final packages = packagesAsync.valueOrNull;
+    final packageLabels = packages == null
+        ? <String, String>{}
+        : {for (final p in packages) p['id'] as String: p['label'] as String};
     final breakdown = computeRevenueBreakdown(visits);
     final totalRevenue = breakdown.total;
     final cashRevenue = breakdown.cash;
@@ -373,6 +415,18 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     final r = _effectiveRange;
     final rangeLabel =
         '${DateFormat('d MMM yyyy').format(r.start)} – ${DateFormat('d MMM yyyy').format(r.end)}';
+    final packageIds = _packageIdsForBreakdown(packages, countByPkg);
+
+    Future<void> exportWithLabels(String type) async {
+      final labels = packageLabels.isNotEmpty
+          ? packageLabels
+          : await _loadPackageLabels();
+      if (type == 'csv') {
+        _exportCsv(labels);
+      } else {
+        await _exportPdf(labels);
+      }
+    }
 
     return Scaffold(
       backgroundColor: WashTheme.bg,
@@ -384,10 +438,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
               icon: const Icon(Icons.file_download_outlined),
               tooltip: 'Export',
               color: WashTheme.surfaceCard,
-              onSelected: (val) {
-                if (val == 'csv') _exportCsv();
-                if (val == 'pdf') _exportPdf();
-              },
+              onSelected: (val) => exportWithLabels(val),
               itemBuilder: (ctx) => [
                 const PopupMenuItem(
                   value: 'csv',
@@ -632,11 +683,11 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                             icon: Icons.cleaning_services_rounded,
                           ),
                           const SizedBox(height: 10),
-                          ...WashPackage.all.map((pkg) {
+                          ...packageIds.map((pkg) {
                             final count = countByPkg[pkg] ?? 0;
                             return _BreakdownCard(
                               emoji: '✨',
-                              label: WashPackage.label(pkg),
+                              label: _packageLabel(pkg, packageLabels),
                               count: count,
                               total: visits.isNotEmpty ? visits.length : 1,
                             );
