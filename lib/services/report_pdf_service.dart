@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
 
 import '../core/constants.dart';
 import '../models/visit.dart';
@@ -55,6 +56,25 @@ class ReportPdfService {
       labels[id] ?? WashPackage.label(id);
 
   static Future<Uint8List> build(ReportPdfInput input) async {
+    // Noto Sans covers ₹ (U+20B9) and – (U+2013) which the default
+    // Helvetica/base14 fonts in the pdf package do not include.
+    final fontRegular = await PdfGoogleFonts.notoSansRegular();
+    final fontBold = await PdfGoogleFonts.notoSansBold();
+
+    pw.TextStyle baseStyle({
+      double fontSize = 9,
+      bool bold = false,
+      PdfColor? color,
+      double? letterSpacing,
+    }) =>
+        pw.TextStyle(
+          font: bold ? fontBold : fontRegular,
+          fontBold: fontBold,
+          fontSize: fontSize,
+          color: color ?? _text,
+          letterSpacing: letterSpacing,
+        );
+
     final generatedAt = DateTime.now();
     final generatedLabel = DateFormat(_generatedFmt).format(generatedAt);
     final range = rangeLabel(input.range);
@@ -93,19 +113,12 @@ class ReportPdfService {
                         children: [
                           pw.TextSpan(
                             text: 'LUXURY ',
-                            style: pw.TextStyle(
-                              color: _text,
-                              fontSize: 14,
-                              fontWeight: pw.FontWeight.bold,
-                            ),
+                            style: baseStyle(fontSize: 14, bold: true),
                           ),
                           pw.TextSpan(
                             text: 'CAR CARE',
-                            style: pw.TextStyle(
-                              color: _gold,
-                              fontSize: 14,
-                              fontWeight: pw.FontWeight.bold,
-                            ),
+                            style:
+                                baseStyle(fontSize: 14, bold: true, color: _gold),
                           ),
                         ],
                       ),
@@ -113,7 +126,7 @@ class ReportPdfService {
                     pw.SizedBox(height: 2),
                     pw.Text(
                       'Wash Report · $range',
-                      style: pw.TextStyle(color: _muted, fontSize: 9),
+                      style: baseStyle(color: _muted),
                     ),
                   ],
                 ),
@@ -126,8 +139,8 @@ class ReportPdfService {
           alignment: pw.Alignment.center,
           margin: const pw.EdgeInsets.only(top: 8),
           child: pw.Text(
-            'wash.sindhole.com · Generated $generatedLabel · Page ${ctx.pageNumber} of ${ctx.pagesCount}',
-            style: pw.TextStyle(color: _muted, fontSize: 8),
+            'wash.sindhole.com  ·  Generated $generatedLabel  ·  Page ${ctx.pageNumber} of ${ctx.pagesCount}',
+            style: baseStyle(fontSize: 8, color: _muted),
           ),
         );
 
@@ -141,29 +154,22 @@ class ReportPdfService {
           ),
           child: pw.Text(
             summaryParts.join('  ·  '),
-            style: pw.TextStyle(
-              color: _text,
-              fontSize: 10,
-              fontWeight: pw.FontWeight.bold,
-            ),
+            style: baseStyle(fontSize: 10, bold: true),
           ),
         );
 
     pw.Widget cell(
       String text, {
       bool header = false,
-      bool right = false,
       PdfColor? color,
     }) =>
         pw.Padding(
           padding: const pw.EdgeInsets.symmetric(horizontal: 5, vertical: 6),
           child: pw.Text(
             text,
-            textAlign: right ? pw.TextAlign.right : pw.TextAlign.left,
-            style: pw.TextStyle(
-              color: color ?? (header ? _text : _text),
-              fontSize: header ? 9 : 9,
-              fontWeight: header ? pw.FontWeight.bold : pw.FontWeight.normal,
+            style: baseStyle(
+              bold: header,
+              color: color ?? _text,
             ),
           ),
         );
@@ -217,7 +223,7 @@ class ReportPdfService {
         rows.add(visitRow(chunk[i], i.isOdd));
       }
       return pw.Table(
-        border: pw.TableBorder(
+        border: const pw.TableBorder(
           horizontalInside: pw.BorderSide(color: _border, width: 0.5),
         ),
         columnWidths: {
@@ -235,7 +241,9 @@ class ReportPdfService {
       );
     }
 
-    final doc = pw.Document();
+    final doc = pw.Document(
+      theme: pw.ThemeData.withFont(base: fontRegular, bold: fontBold),
+    );
     doc.addPage(
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
@@ -248,12 +256,7 @@ class ReportPdfService {
             pw.SizedBox(height: 14),
             pw.Text(
               'VISIT LOG',
-              style: pw.TextStyle(
-                color: _muted,
-                fontSize: 8,
-                letterSpacing: 1.2,
-                fontWeight: pw.FontWeight.bold,
-              ),
+              style: baseStyle(fontSize: 8, bold: true, color: _muted, letterSpacing: 1.2),
             ),
             pw.SizedBox(height: 6),
           ];
