@@ -262,6 +262,35 @@ async function sendDayEmail(dayStart: Date, dayEnd: Date): Promise<void> {
     return;
   }
 
+  // Build CSV attachment from today's visits
+  const snap = await db
+    .collection("visits")
+    .where("createdAt", ">=", Timestamp.fromDate(dayStart))
+    .where("createdAt", "<", Timestamp.fromDate(dayEnd))
+    .orderBy("createdAt")
+    .get();
+
+  const csvRows: string[][] = [
+    ["Date", "Time", "Plate", "Vehicle", "Package", "Amount", "Paid"],
+  ];
+  snap.docs.forEach((d) => {
+    const v = d.data() as Visit;
+    if (v.voided) return;
+    const dt = v.createdAt.toDate();
+    csvRows.push([
+      dt.toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" }),
+      dt.toLocaleTimeString("en-IN", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit" }),
+      v.plate,
+      labelType(v.vehicleType),
+      labelPkg(v.packageId),
+      String(v.amount),
+      v.paid ? "Yes" : "No",
+    ]);
+  });
+  const csvContent = csvRows.map((row) => row.map((cell) => `"${cell.replace(/"/g, '""')}"`).join(",")).join("\n");
+  const csvBase64 = Buffer.from(csvContent, "utf-8").toString("base64");
+  const csvFilename = `lcc-report-${dayStart.toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" })}.csv`;
+
   const fromAddress = process.env.RESEND_FROM ?? "Luxury Car Care <wash@sindhole.com>";
 
   const resend = new Resend(apiKey);
@@ -270,6 +299,12 @@ async function sendDayEmail(dayStart: Date, dayEnd: Date): Promise<void> {
     to: ownerEmails,
     subject: `Luxury Car Care — ${summary.total} washes · ${dateLabel}`,
     html: buildEmailHtml(summary, dateLabel),
+    attachments: [
+      {
+        filename: csvFilename,
+        content: csvBase64,
+      },
+    ],
   });
 
   if (error) {

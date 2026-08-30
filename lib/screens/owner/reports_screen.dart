@@ -1,12 +1,15 @@
 // Date-range reports screen — week / month / custom filter.
-// Shows totals, type breakdown, package breakdown, and CSV export.
+// Shows totals, type breakdown, package breakdown, CSV and PDF export.
 
 import 'dart:convert';
 import 'package:csv/csv.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/constants.dart';
@@ -116,6 +119,222 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     }
   }
 
+  Future<void> _exportPdf() async {
+    final visits = _visits ?? [];
+    if (visits.isEmpty) return;
+
+    final r = _effectiveRange;
+    final rangeLabel =
+        '${DateFormat('d MMM yyyy').format(r.start)} – ${DateFormat('d MMM yyyy').format(r.end)}';
+    final totalRevenue = visits.fold<int>(0, (s, v) => s + v.amount);
+    final paidRevenue =
+        visits.where((v) => v.paid).fold<int>(0, (s, v) => s + v.amount);
+    final pendingRevenue = totalRevenue - paidRevenue;
+    final countByType = <String, int>{};
+    final revenueByType = <String, int>{};
+    final countByPkg = <String, int>{};
+    for (final v in visits) {
+      countByType[v.vehicleType] = (countByType[v.vehicleType] ?? 0) + 1;
+      revenueByType[v.vehicleType] =
+          (revenueByType[v.vehicleType] ?? 0) + v.amount;
+      countByPkg[v.packageId] = (countByPkg[v.packageId] ?? 0) + 1;
+    }
+
+    final pdf = pw.Document();
+    const gold = PdfColor.fromInt(0xFFC9952A);
+    const dark = PdfColor.fromInt(0xFF1C1917);
+    const bg = PdfColor.fromInt(0xFF0F0E0D);
+    const textPrimary = PdfColor.fromInt(0xFFFAFAF8);
+    const textSecondary = PdfColor.fromInt(0xFF9C9489);
+    const successColor = PdfColor.fromInt(0xFF10B981);
+    const dangerColor = PdfColor.fromInt(0xFFF43F5E);
+    const border = PdfColor.fromInt(0xFF3A322A);
+
+    pw.Widget kpiCard(String label, String value, PdfColor color) =>
+        pw.Container(
+          margin: const pw.EdgeInsets.only(bottom: 8),
+          padding: const pw.EdgeInsets.all(14),
+          decoration: pw.BoxDecoration(
+            color: bg,
+            borderRadius: pw.BorderRadius.circular(8),
+            border: pw.Border.all(color: border),
+          ),
+          child: pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              pw.Text(label,
+                  style: pw.TextStyle(
+                      color: textSecondary,
+                      fontSize: 9,
+                      letterSpacing: 1.2)),
+              pw.SizedBox(height: 4),
+              pw.Text(value,
+                  style: pw.TextStyle(
+                      color: color, fontSize: 22, fontWeight: pw.FontWeight.bold)),
+            ],
+          ),
+        );
+
+    pw.Widget breakdownRow(String label, int count, int total, {int? revenue}) {
+      final pct = total > 0 ? (count / total * 100).round() : 0;
+      return pw.Container(
+        margin: const pw.EdgeInsets.only(bottom: 6),
+        padding: const pw.EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: pw.BoxDecoration(
+          color: bg,
+          borderRadius: pw.BorderRadius.circular(6),
+          border: pw.Border.all(color: border),
+        ),
+        child: pw.Row(
+          children: [
+            pw.Expanded(
+              child: pw.Text(label,
+                  style: pw.TextStyle(
+                      color: textPrimary,
+                      fontSize: 11,
+                      fontWeight: pw.FontWeight.bold)),
+            ),
+            pw.Text('$count ($pct%)',
+                style: pw.TextStyle(color: textSecondary, fontSize: 11)),
+            if (revenue != null) ...[
+              pw.SizedBox(width: 16),
+              pw.Text('₹$revenue',
+                  style: pw.TextStyle(
+                      color: gold,
+                      fontSize: 12,
+                      fontWeight: pw.FontWeight.bold)),
+            ],
+          ],
+        ),
+      );
+    }
+
+    pdf.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.all(32),
+        build: (ctx) => [
+          // Header
+          pw.Container(
+            padding: const pw.EdgeInsets.all(20),
+            decoration: pw.BoxDecoration(
+              color: dark,
+              borderRadius: pw.BorderRadius.circular(12),
+              border: pw.Border.all(color: gold, width: 2),
+            ),
+            child: pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.Row(children: [
+                  pw.Text('LUXURY ',
+                      style: pw.TextStyle(
+                          color: textPrimary,
+                          fontSize: 22,
+                          fontWeight: pw.FontWeight.bold)),
+                  pw.Text('CAR CARE',
+                      style: pw.TextStyle(
+                          color: gold,
+                          fontSize: 22,
+                          fontWeight: pw.FontWeight.bold)),
+                ]),
+                pw.SizedBox(height: 4),
+                pw.Text('Analytics Report · $rangeLabel',
+                    style: pw.TextStyle(color: textSecondary, fontSize: 10)),
+              ],
+            ),
+          ),
+          pw.SizedBox(height: 16),
+
+          // KPI cards
+          kpiCard('TOTAL REVENUE', '₹$totalRevenue', gold),
+          kpiCard('COLLECTED CASH', '₹$paidRevenue', successColor),
+          if (pendingRevenue > 0)
+            kpiCard('PENDING BALANCE', '₹$pendingRevenue', dangerColor),
+          kpiCard('TOTAL WASHES', '${visits.length}', textPrimary),
+          pw.SizedBox(height: 16),
+
+          // By vehicle type
+          pw.Text('VOLUME & REVENUE BY VEHICLE TYPE',
+              style: pw.TextStyle(
+                  color: textSecondary, fontSize: 9, letterSpacing: 1.2)),
+          pw.SizedBox(height: 6),
+          ...VehicleType.all.map((type) => breakdownRow(
+                VehicleType.label(type),
+                countByType[type] ?? 0,
+                visits.length,
+                revenue: revenueByType[type] ?? 0,
+              )),
+          pw.SizedBox(height: 16),
+
+          // By package
+          pw.Text('SERVICE PACKAGE DISTRIBUTION',
+              style: pw.TextStyle(
+                  color: textSecondary, fontSize: 9, letterSpacing: 1.2)),
+          pw.SizedBox(height: 6),
+          ...WashPackage.all.map((pkg) => breakdownRow(
+                WashPackage.label(pkg),
+                countByPkg[pkg] ?? 0,
+                visits.length,
+              )),
+          pw.SizedBox(height: 24),
+
+          // Visit table
+          pw.Text('VISIT LOG',
+              style: pw.TextStyle(
+                  color: textSecondary, fontSize: 9, letterSpacing: 1.2)),
+          pw.SizedBox(height: 6),
+          pw.Table(
+            border: pw.TableBorder.all(color: border, width: 0.5),
+            columnWidths: {
+              0: const pw.FlexColumnWidth(1.8),
+              1: const pw.FlexColumnWidth(2),
+              2: const pw.FlexColumnWidth(2.5),
+              3: const pw.FlexColumnWidth(1.2),
+              4: const pw.FlexColumnWidth(1),
+            },
+            children: [
+              pw.TableRow(
+                decoration: pw.BoxDecoration(color: dark),
+                children: ['Date', 'Plate', 'Package', 'Amount', 'Paid']
+                    .map((h) => pw.Padding(
+                          padding: const pw.EdgeInsets.all(6),
+                          child: pw.Text(h,
+                              style: pw.TextStyle(
+                                  color: gold,
+                                  fontSize: 9,
+                                  fontWeight: pw.FontWeight.bold)),
+                        ))
+                    .toList(),
+              ),
+              ...visits.map((v) => pw.TableRow(
+                    children: [
+                      DateFormat('dd/MM/yy').format(v.createdAt),
+                      v.plate,
+                      WashPackage.label(v.packageId),
+                      '₹${v.amount}',
+                      v.paid ? 'Yes' : 'No',
+                    ]
+                        .map((cell) => pw.Padding(
+                              padding: const pw.EdgeInsets.all(6),
+                              child: pw.Text(cell,
+                                  style: pw.TextStyle(
+                                      color: textPrimary, fontSize: 9)),
+                            ))
+                        .toList(),
+                  )),
+            ],
+          ),
+        ],
+      ),
+    );
+
+    await Printing.sharePdf(
+      bytes: await pdf.save(),
+      filename:
+          'lcc-report-${DateFormat('yyyy-MM-dd').format(r.start)}-${DateFormat('yyyy-MM-dd').format(r.end)}.pdf',
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final visits = _visits ?? [];
@@ -139,24 +358,35 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     return Scaffold(
       backgroundColor: WashTheme.bg,
       appBar: AppBar(
-        title: const Text('Analytics & Financial Reports'),
+        title: const Text('Analytics & Reports'),
         actions: [
           if (visits.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(right: 16),
-              child: ElevatedButton.icon(
-                icon: const Icon(Icons.file_download_outlined, size: 16),
-                label: const Text('Export CSV'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: WashTheme.surfaceHigh,
-                  foregroundColor: WashTheme.textPrimary,
-                  minimumSize: const Size(0, 36),
-                  side: const BorderSide(color: WashTheme.border),
-                  padding: const EdgeInsets.symmetric(horizontal: 14),
-                  textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+            PopupMenuButton<String>(
+              icon: const Icon(Icons.file_download_outlined),
+              tooltip: 'Export',
+              color: WashTheme.surfaceCard,
+              onSelected: (val) {
+                if (val == 'csv') _exportCsv();
+                if (val == 'pdf') _exportPdf();
+              },
+              itemBuilder: (ctx) => [
+                const PopupMenuItem(
+                  value: 'csv',
+                  child: Row(children: [
+                    Icon(Icons.table_chart_outlined, size: 18),
+                    SizedBox(width: 12),
+                    Text('Export CSV'),
+                  ]),
                 ),
-                onPressed: _exportCsv,
-              ),
+                const PopupMenuItem(
+                  value: 'pdf',
+                  child: Row(children: [
+                    Icon(Icons.picture_as_pdf_outlined, size: 18),
+                    SizedBox(width: 12),
+                    Text('Export PDF'),
+                  ]),
+                ),
+              ],
             ),
         ],
       ),
@@ -239,7 +469,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                         children: [
                           // Revenue Overview Card
                           Container(
-                            padding: const EdgeInsets.all(28),
+                            padding: const EdgeInsets.all(20),
                             decoration: BoxDecoration(
                               color: WashTheme.surfaceCard,
                               borderRadius: BorderRadius.circular(24),
@@ -255,40 +485,47 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        const Text(
-                                          'TOTAL REVENUE',
-                                          style: TextStyle(
-                                            color: WashTheme.textSecondary,
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w700,
-                                            letterSpacing: 1.1,
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          const Text(
+                                            'TOTAL REVENUE',
+                                            style: TextStyle(
+                                              color: WashTheme.textSecondary,
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w700,
+                                              letterSpacing: 1.1,
+                                            ),
                                           ),
-                                        ),
-                                        const SizedBox(height: 6),
-                                        Text(
-                                          '₹$totalRevenue',
-                                          style: const TextStyle(
-                                            color: WashTheme.accent,
-                                            fontSize: 48,
-                                            fontWeight: FontWeight.w900,
-                                            letterSpacing: -1.5,
+                                          const SizedBox(height: 4),
+                                          FittedBox(
+                                            fit: BoxFit.scaleDown,
+                                            alignment: Alignment.centerLeft,
+                                            child: Text(
+                                              '₹$totalRevenue',
+                                              style: const TextStyle(
+                                                color: WashTheme.accent,
+                                                fontSize: 44,
+                                                fontWeight: FontWeight.w900,
+                                                letterSpacing: -1.5,
+                                              ),
+                                            ),
                                           ),
-                                        ),
-                                      ],
+                                        ],
+                                      ),
                                     ),
+                                    const SizedBox(width: 12),
                                     Container(
-                                      padding: const EdgeInsets.all(16),
+                                      padding: const EdgeInsets.all(14),
                                       decoration: BoxDecoration(
                                         color: WashTheme.surfaceHigh,
-                                        borderRadius: BorderRadius.circular(16),
-                                        border: Border.all(color: WashTheme.border),
+                                        borderRadius: BorderRadius.circular(14),
+                                        border: Border.all(
+                                            color: WashTheme.border),
                                       ),
                                       child: Column(
                                         crossAxisAlignment:
@@ -298,7 +535,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                                             '${visits.length} Washes',
                                             style: const TextStyle(
                                               color: WashTheme.textPrimary,
-                                              fontSize: 18,
+                                              fontSize: 16,
                                               fontWeight: FontWeight.w800,
                                             ),
                                           ),
@@ -315,15 +552,17 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                                     ),
                                   ],
                                 ),
-                                const SizedBox(height: 16),
-                                Row(
+                                const SizedBox(height: 14),
+                                // Tags wrap so they never overflow on narrow screens
+                                Wrap(
+                                  spacing: 10,
+                                  runSpacing: 8,
                                   children: [
                                     _ReportTag(
                                       label: 'Collected Cash',
                                       value: '₹$paidRevenue',
                                       color: WashTheme.success,
                                     ),
-                                    const SizedBox(width: 12),
                                     _ReportTag(
                                       label: 'Pending Balance',
                                       value: '₹$pendingRevenue',
@@ -532,36 +771,42 @@ class _BreakdownCard extends StatelessWidget {
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
                   ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
-              Text(
-                '$count ($percentage%)',
-                style: const TextStyle(
-                  color: WashTheme.textSecondary,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              if (revenue != null) ...[
-                const SizedBox(width: 16),
-                Text(
-                  '₹$revenue',
-                  style: const TextStyle(
-                    color: WashTheme.accent,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w800,
+              const SizedBox(width: 8),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    '$count ($percentage%)',
+                    style: const TextStyle(
+                      color: WashTheme.textSecondary,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
-                ),
-              ],
+                  if (revenue != null)
+                    Text(
+                      '₹$revenue',
+                      style: const TextStyle(
+                        color: WashTheme.accent,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                ],
+              ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
           ClipRRect(
             borderRadius: BorderRadius.circular(6),
             child: LinearProgressIndicator(
               value: fraction,
               backgroundColor: WashTheme.surfaceHigh,
-              valueColor: const AlwaysStoppedAnimation<Color>(WashTheme.accent),
+              valueColor:
+                  const AlwaysStoppedAnimation<Color>(WashTheme.accent),
               minHeight: 6,
             ),
           ),
