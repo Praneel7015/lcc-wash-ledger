@@ -19,8 +19,10 @@ service cloud.firestore {
     match /visits/{id} {
       allow read: if isSignedIn();
       allow create: if isWorker() || isOwner();
+      // Any signed-in user may flip only the paid field (workers updating payment status).
+      // All other field changes are owner-only.
       allow update: if isOwner() ||
-        (isWorker() &&
+        (isSignedIn() &&
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['paid']));
       allow delete: if isOwner();
     }
