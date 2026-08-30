@@ -90,14 +90,51 @@ function buildEmailHtml(summary: DaySummary, dateLabel: string): string {
   const typeRows = Object.entries(summary.byType)
     .map(
       ([k, v]) =>
-        `<tr><td style="padding:8px 14px;color:#FAFAF8;border-bottom:1px solid #2A2420;">${labelType(k)}</td><td style="padding:8px 14px;text-align:right;font-weight:700;color:#C9952A;border-bottom:1px solid #2A2420;">${v}</td></tr>`
+        `<tr><td style="padding:8px 14px;color:#FAFAF8;border-bottom:1px solid #2A2420;word-break:break-word;white-space:normal;">${labelType(k)}</td><td style="padding:8px 14px;text-align:right;font-weight:700;color:#C9952A;border-bottom:1px solid #2A2420;white-space:nowrap;">${v}</td></tr>`
     )
     .join("");
 
   const pkgRows = Object.entries(summary.byPackage)
     .map(
       ([k, v]) =>
-        `<tr><td style="padding:8px 14px;color:#FAFAF8;border-bottom:1px solid #2A2420;">${labelPkg(k)}</td><td style="padding:8px 14px;text-align:right;font-weight:700;color:#C9952A;border-bottom:1px solid #2A2420;">${v}</td></tr>`
+        `<tr><td style="padding:8px 14px;color:#FAFAF8;border-bottom:1px solid #2A2420;word-break:break-word;white-space:normal;">${labelPkg(k)}</td><td style="padding:8px 14px;text-align:right;font-weight:700;color:#C9952A;border-bottom:1px solid #2A2420;white-space:nowrap;">${v}</td></tr>`
+    )
+    .join("");
+
+  const kpiRows = [
+    {
+      label: "Vehicles",
+      value: `${summary.total}`,
+      valueColor: "#FAFAF8",
+      valueSize: "32px",
+    },
+    {
+      label: "Revenue",
+      value: formatINR(summary.revenue),
+      valueColor: "#10B981",
+      valueSize: "24px",
+    },
+    ...(summary.unpaid > 0
+      ? [
+          {
+            label: "Pending",
+            value: formatINR(summary.unpaid),
+            valueColor: "#F43F5E",
+            valueSize: "24px",
+          },
+        ]
+      : []),
+  ]
+    .map(
+      (card) => `
+      <tr>
+        <td style="padding:0 0 12px;">
+          <div style="background:#0F0E0D;border-radius:10px;padding:14px 16px;border:1px solid #3A322A;">
+            <div style="font-size:11px;color:#9C9489;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;">${card.label}</div>
+            <div style="font-size:${card.valueSize};line-height:1.2;font-weight:800;color:${card.valueColor};word-break:break-word;white-space:normal;">${card.value}</div>
+          </div>
+        </td>
+      </tr>`
     )
     .join("");
 
@@ -106,51 +143,63 @@ function buildEmailHtml(summary: DaySummary, dateLabel: string): string {
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <style>
+    @media only screen and (max-width: 600px) {
+      .mail-wrap {
+        padding: 16px 8px !important;
+      }
+      .mail-card {
+        border-radius: 12px !important;
+      }
+      .mail-header,
+      .mail-body,
+      .mail-footer {
+        padding-left: 16px !important;
+        padding-right: 16px !important;
+      }
+      .mail-title {
+        font-size: 17px !important;
+      }
+    }
+  </style>
 </head>
-<body style="font-family:'Inter',Arial,sans-serif;background:#0F0E0D;color:#FAFAF8;margin:0;padding:32px 16px;">
-  <div style="max-width:520px;margin:0 auto;background:#1C1917;border-radius:16px;overflow:hidden;border:1px solid #3A322A;">
+<body style="font-family:'Inter',Arial,sans-serif;background:#0F0E0D;color:#FAFAF8;margin:0;padding:0;">
+  <div class="mail-wrap" style="padding:32px 16px;">
+  <div class="mail-card" style="max-width:520px;margin:0 auto;background:#1C1917;border-radius:16px;overflow:hidden;border:1px solid #3A322A;">
 
     <!-- Header bar -->
-    <div style="background:#0F0E0D;padding:28px 32px;border-bottom:3px solid #C9952A;">
-      <div style="display:flex;align-items:center;gap:12px;">
-        <div style="width:6px;height:32px;background:#C9952A;border-radius:3px;transform:skewX(-12deg);"></div>
-        <div>
-          <div style="font-size:11px;letter-spacing:2px;color:#9C9489;text-transform:uppercase;margin-bottom:2px;">End of Day Report</div>
-          <div style="font-size:20px;font-weight:800;letter-spacing:0.5px;">
-            <span style="color:#FAFAF8;">LUXURY </span><span style="color:#C9952A;">CAR CARE</span>
-          </div>
-        </div>
-      </div>
+    <div class="mail-header" style="background:#0F0E0D;padding:28px 32px;border-bottom:3px solid #C9952A;">
+      <table role="presentation" style="border-collapse:collapse;">
+        <tr>
+          <td style="width:14px;vertical-align:top;padding-right:8px;">
+            <div style="width:6px;height:32px;background:#C9952A;border-radius:3px;"></div>
+          </td>
+          <td style="vertical-align:top;">
+            <div style="font-size:11px;letter-spacing:2px;color:#9C9489;text-transform:uppercase;margin-bottom:2px;">End of Day Report</div>
+            <div class="mail-title" style="font-size:20px;font-weight:800;letter-spacing:0.5px;">
+              <span style="color:#FAFAF8;">LUXURY </span><span style="color:#C9952A;">CAR CARE</span>
+            </div>
+          </td>
+        </tr>
+      </table>
       <div style="margin-top:8px;font-size:13px;color:#9C9489;">${dateLabel}</div>
     </div>
 
     <!-- KPI strip -->
-    <div style="padding:24px 32px 0;">
-      <div style="display:flex;gap:12px;margin-bottom:24px;">
-        <div style="flex:1;background:#0F0E0D;border-radius:10px;padding:16px;border:1px solid #3A322A;">
-          <div style="font-size:11px;color:#9C9489;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;">Vehicles</div>
-          <div style="font-size:32px;font-weight:800;color:#FAFAF8;">${summary.total}</div>
-        </div>
-        <div style="flex:1;background:#0F0E0D;border-radius:10px;padding:16px;border:1px solid #3A322A;">
-          <div style="font-size:11px;color:#9C9489;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;">Revenue</div>
-          <div style="font-size:28px;font-weight:800;color:#10B981;">${formatINR(summary.revenue)}</div>
-        </div>
-        ${summary.unpaid > 0
-          ? `<div style="flex:1;background:#0F0E0D;border-radius:10px;padding:16px;border:1px solid #3A322A;">
-          <div style="font-size:11px;color:#9C9489;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;">Pending</div>
-          <div style="font-size:28px;font-weight:800;color:#F43F5E;">${formatINR(summary.unpaid)}</div>
-        </div>` : ""}
-      </div>
+    <div class="mail-body" style="padding:24px 32px 0;">
+      <table role="presentation" style="width:100%;border-collapse:collapse;margin-bottom:12px;">
+        ${kpiRows}
+      </table>
 
       <!-- By package (shown first) -->
       <div style="font-size:11px;color:#9C9489;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:8px;">By Package</div>
-      <table style="width:100%;border-collapse:collapse;background:#0F0E0D;border-radius:8px;margin-bottom:20px;border:1px solid #2A2420;">
+      <table style="width:100%;border-collapse:collapse;background:#0F0E0D;border-radius:8px;margin-bottom:20px;border:1px solid #2A2420;table-layout:fixed;">
         ${pkgRows || "<tr><td colspan='2' style='padding:12px 14px;color:#5C5751;'>No data</td></tr>"}
       </table>
 
       <!-- By vehicle type -->
       <div style="font-size:11px;color:#9C9489;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:8px;">By Vehicle Type</div>
-      <table style="width:100%;border-collapse:collapse;background:#0F0E0D;border-radius:8px;margin-bottom:20px;border:1px solid #2A2420;">
+      <table style="width:100%;border-collapse:collapse;background:#0F0E0D;border-radius:8px;margin-bottom:20px;border:1px solid #2A2420;table-layout:fixed;">
         ${typeRows || "<tr><td colspan='2' style='padding:12px 14px;color:#5C5751;'>No data</td></tr>"}
       </table>
 
@@ -162,10 +211,11 @@ function buildEmailHtml(summary: DaySummary, dateLabel: string): string {
     </div>
 
     <!-- Footer -->
-    <div style="padding:16px 32px;border-top:1px solid #2A2420;font-size:12px;color:#5C5751;display:flex;justify-content:space-between;">
-      <span>Luxury Car Care · Auto-generated report</span>
-      <span style="color:#C9952A;">Bidar, Karnataka</span>
+    <div class="mail-footer" style="padding:16px 32px;border-top:1px solid #2A2420;font-size:12px;color:#5C5751;">
+      <div style="margin-bottom:4px;">Luxury Car Care · Auto-generated report</div>
+      <div style="color:#C9952A;">Bidar, Karnataka</div>
     </div>
+  </div>
   </div>
 </body>
 </html>`;
