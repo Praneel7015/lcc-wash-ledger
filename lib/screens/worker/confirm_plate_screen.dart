@@ -36,7 +36,10 @@ class _ConfirmPlateScreenState extends ConsumerState<ConfirmPlateScreen> {
   @override
   void initState() {
     super.initState();
-    _ctrl = TextEditingController(text: widget.ocrText);
+    final formatted = widget.ocrText.isEmpty
+        ? ''
+        : formatIndianPlate(widget.ocrText);
+    _ctrl = TextEditingController(text: formatted);
     _lookupCustomer(widget.ocrText);
   }
 
@@ -90,7 +93,8 @@ class _ConfirmPlateScreenState extends ConsumerState<ConfirmPlateScreen> {
                 borderRadius: BorderRadius.circular(12),
                 child: Image.memory(
                   Uint8List.fromList(widget.imageBytes),
-                  height: 160,
+                  height: 120,
+                  width: double.infinity,
                   fit: BoxFit.cover,
                 ),
               ),
@@ -108,25 +112,25 @@ class _ConfirmPlateScreenState extends ConsumerState<ConfirmPlateScreen> {
                   border: Border.all(color: WashTheme.plateBlack, width: 3),
                 ),
                 padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 child: TextField(
                   controller: _ctrl,
                   textAlign: TextAlign.center,
                   textCapitalization: TextCapitalization.characters,
                   style: const TextStyle(
                     color: WashTheme.plateBlack,
-                    fontSize: 36,
+                    fontSize: 24,
                     fontWeight: FontWeight.w900,
-                    letterSpacing: 6,
+                    letterSpacing: 2,
                   ),
                   decoration: const InputDecoration(
                     border: InputBorder.none,
                     filled: false,
-                    hintText: 'KA01AB1234',
+                    hintText: 'KA 01 AB 1234',
                     hintStyle: TextStyle(
                       color: Color(0x88000000),
-                      fontSize: 28,
-                      letterSpacing: 4,
+                      fontSize: 20,
+                      letterSpacing: 2,
                     ),
                   ),
                   onChanged: (v) => _lookupCustomer(v),

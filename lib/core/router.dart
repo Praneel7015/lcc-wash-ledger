@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 
 import '../models/wash_draft.dart';
 import '../providers/auth_provider.dart';
+import '../providers/wash_session_provider.dart';
 import '../screens/auth/login_screen.dart';
 import '../screens/owner/dashboard_screen.dart';
 import '../screens/owner/rates_screen.dart';
@@ -15,10 +16,12 @@ import '../screens/worker/capture_front_screen.dart';
 import '../screens/worker/capture_plate_screen.dart';
 import '../screens/worker/confirm_plate_screen.dart';
 import '../screens/worker/phone_paid_screen.dart';
+import '../screens/worker/today_washes_screen.dart';
 import '../screens/worker/type_package_screen.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authStateProvider);
+  final washSession = ref.watch(washSessionProvider);
 
   return GoRouter(
     initialLocation: '/login',
@@ -38,7 +41,13 @@ final routerProvider = Provider<GoRouter>((ref) {
       // ── Worker flow (Android) ──────────────────────────────────────
       GoRoute(
         path: '/worker/capture-plate',
-        builder: (context, state) => const CapturePlateScreen(),
+        builder: (context, state) => CapturePlateScreen(
+          key: ValueKey('capture-plate-$washSession'),
+        ),
+      ),
+      GoRoute(
+        path: '/worker/today',
+        builder: (context, state) => const TodayWashesScreen(),
       ),
       GoRoute(
         path: '/worker/confirm-plate',

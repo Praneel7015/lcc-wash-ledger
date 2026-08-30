@@ -705,12 +705,30 @@ class _TypeMetricCard extends StatelessWidget {
   }
 }
 
-class _VisitTile extends StatelessWidget {
+class _VisitTile extends ConsumerWidget {
   final Visit visit;
   const _VisitTile({required this.visit});
 
+  Future<void> _togglePaid(BuildContext context, WidgetRef ref) async {
+    final newPaid = !visit.paid;
+    try {
+      await ref
+          .read(firestoreServiceProvider)
+          .updateVisit(visit.id, {'paid': newPaid});
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Could not update payment: $e'),
+            backgroundColor: WashTheme.danger,
+          ),
+        );
+      }
+    }
+  }
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final time = DateFormat('h:mm a').format(visit.createdAt);
 
     return Container(
@@ -797,29 +815,32 @@ class _VisitTile extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 4),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: visit.paid
-                              ? WashTheme.success.withValues(alpha: 0.15)
-                              : WashTheme.danger.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(
+                      GestureDetector(
+                        onTap: () => _togglePaid(context, ref),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
                             color: visit.paid
-                                ? WashTheme.success.withValues(alpha: 0.3)
-                                : WashTheme.danger.withValues(alpha: 0.3),
+                                ? WashTheme.success.withValues(alpha: 0.15)
+                                : WashTheme.danger.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(
+                              color: visit.paid
+                                  ? WashTheme.success.withValues(alpha: 0.3)
+                                  : WashTheme.danger.withValues(alpha: 0.3),
+                            ),
                           ),
-                        ),
-                        child: Text(
-                          visit.paid ? 'PAID' : 'UNPAID',
-                          style: TextStyle(
-                            color: visit.paid
-                                ? WashTheme.success
-                                : WashTheme.danger,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 0.5,
+                          child: Text(
+                            visit.paid ? 'PAID' : 'UNPAID',
+                            style: TextStyle(
+                              color: visit.paid
+                                  ? WashTheme.success
+                                  : WashTheme.danger,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 0.5,
+                            ),
                           ),
                         ),
                       ),

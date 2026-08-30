@@ -129,3 +129,36 @@ const int photoRetentionDays = 90;
 // India plate normalisation: strip spaces, uppercase
 String normalisePlate(String raw) =>
     raw.replaceAll(RegExp(r'\s+'), '').toUpperCase();
+
+/// Formats a normalised plate for display (e.g. KA01AB1234 → KA 01 AB 1234).
+String formatIndianPlate(String raw) {
+  final p = normalisePlate(raw);
+  if (p.isEmpty) return '';
+
+  // Bharat series: YY BH #### XX
+  final bh = RegExp(r'^(\d{2})(BH)(\d{4})([A-Z]{1,2})$').firstMatch(p);
+  if (bh != null) {
+    return '${bh.group(1)} ${bh.group(2)} ${bh.group(3)} ${bh.group(4)}';
+  }
+
+  // Vintage: AA VA XX ####
+  final va = RegExp(r'^([A-Z]{2})(VA)([A-Z]{1,2})(\d{4})$').firstMatch(p);
+  if (va != null) {
+    return '${va.group(1)} ${va.group(2)} ${va.group(3)} ${va.group(4)}';
+  }
+
+  // Standard: AA ## [A-Z]{0,3} ####
+  final std =
+      RegExp(r'^([A-Z]{2})(\d{1,2})([A-Z]{0,3})(\d{1,4})$').firstMatch(p);
+  if (std != null) {
+    final parts = [
+      std.group(1)!,
+      std.group(2)!,
+      if (std.group(3)!.isNotEmpty) std.group(3)!,
+      std.group(4)!,
+    ];
+    return parts.join(' ');
+  }
+
+  return p;
+}

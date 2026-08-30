@@ -19,7 +19,10 @@ service cloud.firestore {
     match /visits/{id} {
       allow read: if isSignedIn();
       allow create: if isWorker() || isOwner();
-      allow update, delete: if isOwner();
+      allow update: if isOwner() ||
+        (isWorker() &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['paid']));
+      allow delete: if isOwner();
     }
 
     // Customers — workers upsert on save, owner can read

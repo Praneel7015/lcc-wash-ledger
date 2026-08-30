@@ -11,6 +11,7 @@ import '../../core/constants.dart';
 import '../../core/theme.dart';
 import '../../models/visit.dart';
 import '../../models/wash_draft.dart';
+import '../../providers/wash_session_provider.dart';
 import '../../services/providers.dart';
 import '../../widgets/worker_app_bar.dart';
 
@@ -125,6 +126,7 @@ class _PhonePaidScreenState extends ConsumerState<PhonePaidScreen> {
             const SizedBox(height: 24),
             ElevatedButton(
               onPressed: () {
+                ref.read(washSessionProvider.notifier).state++;
                 Navigator.of(context).pop();
                 context.go('/worker/capture-plate');
               },
@@ -198,50 +200,34 @@ class _PhonePaidScreenState extends ConsumerState<PhonePaidScreen> {
               ),
               const SizedBox(height: 20),
 
-              // Paid toggle
-              GestureDetector(
-                onTap: () => setState(() => _paid = !_paid),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 150),
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 24, vertical: 20),
-                  decoration: BoxDecoration(
-                    color: _paid
-                        ? WashTheme.success.withValues(alpha: 0.1)
-                        : WashTheme.danger.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: _paid
-                          ? WashTheme.success.withValues(alpha: 0.5)
-                          : WashTheme.danger.withValues(alpha: 0.5),
-                      width: 2,
+              // Payment status — two explicit options
+              Text(
+                'Payment status',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: _PaymentOption(
+                      label: 'Paid',
+                      icon: Icons.check_circle_rounded,
+                      selected: _paid,
+                      color: WashTheme.success,
+                      onTap: () => setState(() => _paid = true),
                     ),
                   ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        _paid ? Icons.check_circle : Icons.cancel,
-                        color: _paid ? WashTheme.success : WashTheme.danger,
-                        size: 28,
-                      ),
-                      const SizedBox(width: 16),
-                      Text(
-                        _paid ? 'Paid' : 'Not paid',
-                        style: TextStyle(
-                          color: _paid ? WashTheme.success : WashTheme.danger,
-                          fontSize: 22,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      const Spacer(),
-                      const Text(
-                        'Tap to toggle',
-                        style: TextStyle(
-                            color: WashTheme.textSecondary, fontSize: 13),
-                      ),
-                    ],
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _PaymentOption(
+                      label: 'Not paid',
+                      icon: Icons.schedule_rounded,
+                      selected: !_paid,
+                      color: WashTheme.danger,
+                      onTap: () => setState(() => _paid = false),
+                    ),
                   ),
-                ),
+                ],
               ),
               const SizedBox(height: 32),
 
@@ -261,6 +247,55 @@ class _PhonePaidScreenState extends ConsumerState<PhonePaidScreen> {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PaymentOption extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final bool selected;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _PaymentOption({
+    required this.label,
+    required this.icon,
+    required this.selected,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(vertical: 18),
+        decoration: BoxDecoration(
+          color: selected ? color.withValues(alpha: 0.12) : WashTheme.surface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: selected ? color : WashTheme.border,
+            width: selected ? 2 : 1,
+          ),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, color: selected ? color : WashTheme.textMuted, size: 28),
+            const SizedBox(height: 8),
+            Text(
+              label,
+              style: TextStyle(
+                color: selected ? color : WashTheme.textSecondary,
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
         ),
       ),
     );

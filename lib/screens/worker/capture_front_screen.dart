@@ -92,16 +92,19 @@ class _CaptureView extends StatelessWidget {
       children: [
         const Spacer(),
         Center(
-          child: Container(
-            width: 280,
-            height: 200,
-            decoration: BoxDecoration(
-              color: WashTheme.surfaceCard,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: WashTheme.border, width: 2),
+          child: GestureDetector(
+            onTap: () => onPick(ImageSource.camera),
+            child: Container(
+              width: 280,
+              height: 200,
+              decoration: BoxDecoration(
+                color: WashTheme.surfaceCard,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: WashTheme.border, width: 2),
+              ),
+              child: const Icon(Icons.directions_car_filled_rounded,
+                  size: 80, color: WashTheme.textMuted),
             ),
-            child: const Icon(Icons.camera_front_rounded,
-                size: 80, color: WashTheme.textMuted),
           ),
         ),
         const SizedBox(height: 32),
@@ -155,6 +158,9 @@ class _PreviewView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final previewHeight =
+        (MediaQuery.of(context).size.height * 0.32).clamp(180.0, 280.0);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -177,7 +183,7 @@ class _PreviewView extends StatelessWidget {
               child: Image.memory(
                 imageBytes,
                 width: double.infinity,
-                height: MediaQuery.of(context).size.height * 0.52,
+                height: previewHeight,
                 fit: BoxFit.cover,
               ),
             ),
@@ -259,7 +265,7 @@ class _PreviewView extends StatelessWidget {
               : const Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text('Photo looks good — Next'),
+                    Text('Next'),
                     SizedBox(width: 8),
                     Icon(Icons.arrow_forward_rounded, size: 18),
                   ],

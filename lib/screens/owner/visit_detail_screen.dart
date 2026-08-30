@@ -46,13 +46,53 @@ class VisitDetailScreen extends ConsumerWidget {
   }
 }
 
-class _VisitDetail extends StatelessWidget {
+class _VisitDetail extends ConsumerStatefulWidget {
   final Visit visit;
   final FirestoreService svc;
-  const _VisitDetail({required this.visit, required this.svc});
+
+  const _VisitDetail({
+    required this.visit,
+    required this.svc,
+  });
+
+  @override
+  ConsumerState<_VisitDetail> createState() => _VisitDetailState();
+}
+
+class _VisitDetailState extends ConsumerState<_VisitDetail> {
+  late Visit _visit;
+  bool _updatingPaid = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _visit = widget.visit;
+  }
+
+  Future<void> _togglePaid() async {
+    if (_updatingPaid) return;
+    setState(() => _updatingPaid = true);
+    final newPaid = !_visit.paid;
+    try {
+      await widget.svc.updateVisit(_visit.id, {'paid': newPaid});
+      if (mounted) setState(() => _visit = _visit.copyWith(paid: newPaid));
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Could not update payment: $e'),
+            backgroundColor: WashTheme.danger,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _updatingPaid = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final visit = _visit;
     final fmt = DateFormat('EEEE, d MMMM yyyy • h:mm a');
 
     return Center(
@@ -113,33 +153,53 @@ class _VisitDetail extends StatelessWidget {
                     ),
                   ),
                   const Spacer(),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: visit.paid
-                          ? WashTheme.success.withValues(alpha: 0.15)
-                          : WashTheme.danger.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
+                  GestureDetector(
+                    onTap: _updatingPaid ? null : _togglePaid,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
                         color: visit.paid
-                            ? WashTheme.success.withValues(alpha: 0.3)
-                            : WashTheme.danger.withValues(alpha: 0.3),
+                            ? WashTheme.success.withValues(alpha: 0.15)
+                            : WashTheme.danger.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: visit.paid
+                              ? WashTheme.success.withValues(alpha: 0.3)
+                              : WashTheme.danger.withValues(alpha: 0.3),
+                        ),
                       ),
-                    ),
-                    child: Text(
-                      visit.paid ? 'PAID' : 'UNPAID',
-                      style: TextStyle(
-                        color: visit.paid
-                            ? WashTheme.success
-                            : WashTheme.danger,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 12,
-                        letterSpacing: 0.5,
-                      ),
+                      child: _updatingPaid
+                          ? const SizedBox(
+                              width: 14,
+                              height: 14,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: WashTheme.accent,
+                              ),
+                            )
+                          : Text(
+                              visit.paid ? 'PAID' : 'UNPAID',
+                              style: TextStyle(
+                                color: visit.paid
+                                    ? WashTheme.success
+                                    : WashTheme.danger,
+                                fontWeight: FontWeight.w800,
+                                fontSize: 12,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
                     ),
                   ),
                 ],
+              ),
+            ),
+            const Padding(
+              padding: EdgeInsets.only(top: 8),
+              child: Text(
+                'Tap payment status to toggle',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: WashTheme.textMuted, fontSize: 11),
               ),
             ),
             const SizedBox(height: 20),
@@ -318,7 +378,7 @@ class _VisitDetail extends StatelessWidget {
       ),
     );
     if (ok == true) {
-      await svc.voidVisit(visit.id);
+      await widget.svc.voidVisit(_visit.id);
       if (context.mounted) Navigator.of(context).pop();
     }
   }
@@ -352,6 +412,78 @@ class _PhotoCard extends StatelessWidget {
     required this.icon,
   });
 
+  void _openFullImage(BuildContext context) {
+    if (url == null) return;
+    final size = MediaQuery.of(context).size;
+    showDialog<void>(
+      context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.92),
+      builder: (ctx) => Dialog(
+        backgroundColor: WashTheme.surfaceCard,
+        insetPadding: const EdgeInsets.all(16),
+        child: SizedBox(
+          width: size.width > 600 ? 560 : size.width - 32,
+          height: (size.height * 0.85).clamp(300.0, 720.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 8, 0),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        label,
+                        style: const TextStyle(
+                          color: WashTheme.textPrimary,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close_rounded),
+                      onPressed: () => Navigator.pop(ctx),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: InteractiveViewer(
+                      minScale: 0.5,
+                      maxScale: 4,
+                      child: Image.network(
+                        url!,
+                        fit: BoxFit.contain,
+                        loadingBuilder: (_, child, progress) =>
+                            progress == null
+                                ? child
+                                : const Center(
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: WashTheme.accent,
+                                    ),
+                                  ),
+                        errorBuilder: (_, __, ___) => const Center(
+                          child: Icon(Icons.broken_image_rounded,
+                              color: WashTheme.textMuted, size: 48),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -384,30 +516,67 @@ class _PhotoCard extends StatelessWidget {
             borderRadius:
                 const BorderRadius.vertical(bottom: Radius.circular(16)),
             child: url != null
-                ? Image.network(
-                    url!,
-                    height: 220,
-                    width: double.infinity,
-                    fit: BoxFit.cover,
-                    loadingBuilder: (_, child, progress) => progress == null
-                        ? child
-                        : Container(
+                ? GestureDetector(
+                    onTap: () => _openFullImage(context),
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        Image.network(
+                          url!,
+                          height: 220,
+                          width: double.infinity,
+                          fit: BoxFit.cover,
+                          loadingBuilder: (_, child, progress) =>
+                              progress == null
+                                  ? child
+                                  : Container(
+                                      height: 220,
+                                      color: WashTheme.surfaceHigh,
+                                      child: const Center(
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          color: WashTheme.accent,
+                                        ),
+                                      ),
+                                    ),
+                          errorBuilder: (_, __, ___) => Container(
                             height: 220,
                             color: WashTheme.surfaceHigh,
                             child: const Center(
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: WashTheme.accent,
-                              ),
+                              child: Icon(Icons.broken_image_rounded,
+                                  color: WashTheme.textMuted, size: 36),
                             ),
                           ),
-                    errorBuilder: (_, __, ___) => Container(
-                      height: 220,
-                      color: WashTheme.surfaceHigh,
-                      child: const Center(
-                        child: Icon(Icons.broken_image_rounded,
-                            color: WashTheme.textMuted, size: 36),
-                      ),
+                        ),
+                        Positioned(
+                          bottom: 8,
+                          right: 8,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withValues(alpha: 0.55),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.zoom_in_rounded,
+                                    color: Colors.white, size: 14),
+                                SizedBox(width: 4),
+                                Text(
+                                  'View full',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   )
                 : Container(
