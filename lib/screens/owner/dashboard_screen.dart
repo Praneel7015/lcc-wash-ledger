@@ -2,7 +2,6 @@
 // Optimized for desktop/web and responsive mobile layouts.
 
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -75,49 +74,53 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                             letterSpacing: 1.0,
                           ),
                         ),
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: WashTheme.success.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(4),
-                            border: Border.all(
-                                color: WashTheme.success.withValues(alpha: 0.3)),
-                          ),
-                          child: const Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              CircleAvatar(
-                                radius: 3,
-                                backgroundColor: WashTheme.success,
-                              ),
-                              SizedBox(width: 4),
-                              Text(
-                                'LIVE',
-                                style: TextStyle(
-                                  color: WashTheme.success,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w800,
+                        if (MediaQuery.of(context).size.width > 480) ...[
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: WashTheme.success.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(
+                                  color: WashTheme.success
+                                      .withValues(alpha: 0.3)),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                CircleAvatar(
+                                  radius: 3,
+                                  backgroundColor: WashTheme.success,
                                 ),
-                              ),
-                            ],
+                                SizedBox(width: 4),
+                                Text(
+                                  'LIVE',
+                                  style: TextStyle(
+                                    color: WashTheme.success,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
+                        ],
                       ],
                     ),
-                    Text(
-                      DateFormat('EEEE, d MMMM yyyy').format(today),
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: WashTheme.textSecondary,
-                        fontWeight: FontWeight.w400,
+                    if (MediaQuery.of(context).size.width > 480)
+                      Text(
+                        DateFormat('EEEE, d MMMM yyyy').format(today),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: WashTheme.textSecondary,
+                          fontWeight: FontWeight.w400,
+                        ),
                       ),
-                    ),
                   ],
                 ),
                 const Spacer(),
-                if (kIsWeb || MediaQuery.of(context).size.width > 600) ...[
+                if (MediaQuery.of(context).size.width > 600) ...[
                   TextButton.icon(
                     icon: const Icon(Icons.analytics_outlined, size: 18),
                     label: const Text('Reports'),
@@ -146,8 +149,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   ),
                 ] else ...[
                   PopupMenuButton<String>(
-                    icon: const Icon(Icons.more_vert_rounded),
+                    icon: const Icon(Icons.menu_rounded),
                     color: WashTheme.surfaceCard,
+                    tooltip: 'Menu',
                     onSelected: (val) async {
                       if (val == 'reports') context.push('/owner/reports');
                       if (val == 'rates') context.push('/owner/rates');
