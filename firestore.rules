@@ -19,11 +19,18 @@ service cloud.firestore {
     match /visits/{id} {
       allow read: if isSignedIn();
       allow create: if isWorker() || isOwner();
-      // Any signed-in user may flip only the paid field (workers updating payment status).
+      // Workers may update paid + paymentMethod only, with consistency rules.
       // All other field changes are owner-only.
       allow update: if isOwner() ||
         (isSignedIn() &&
-          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['paid']));
+          request.resource.data.diff(resource.data).affectedKeys()
+              .hasOnly(['paid', 'paymentMethod']) &&
+          (
+            (request.resource.data.paid == true &&
+              request.resource.data.paymentMethod in ['cash', 'upi']) ||
+            (request.resource.data.paid == false &&
+              request.resource.data.paymentMethod == null)
+          ));
       allow delete: if isOwner();
     }
 

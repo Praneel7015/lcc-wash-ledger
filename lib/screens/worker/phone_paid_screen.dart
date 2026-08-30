@@ -26,6 +26,7 @@ class PhonePaidScreen extends ConsumerStatefulWidget {
 class _PhonePaidScreenState extends ConsumerState<PhonePaidScreen> {
   late TextEditingController _phoneCtrl;
   bool _paid = true;
+  String? _paymentMethod;
   bool _saving = false;
 
   @override
@@ -33,6 +34,7 @@ class _PhonePaidScreenState extends ConsumerState<PhonePaidScreen> {
     super.initState();
     _phoneCtrl = TextEditingController(text: widget.draft.phone ?? '');
     _paid = widget.draft.paid;
+    _paymentMethod = widget.draft.paymentMethod;
   }
 
   @override
@@ -70,6 +72,7 @@ class _PhonePaidScreenState extends ConsumerState<PhonePaidScreen> {
         packageId: widget.draft.packageId,
         amount: widget.draft.amount,
         paid: _paid,
+        paymentMethod: _paid ? _paymentMethod : null,
         workerId: uid,
         createdAt: DateTime.now(),
         platePhotoUrl: results[0],
@@ -214,7 +217,9 @@ class _PhonePaidScreenState extends ConsumerState<PhonePaidScreen> {
                       icon: Icons.check_circle_rounded,
                       selected: _paid,
                       color: WashTheme.success,
-                      onTap: () => setState(() => _paid = true),
+                      onTap: () => setState(() {
+                        _paid = true;
+                      }),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -224,15 +229,53 @@ class _PhonePaidScreenState extends ConsumerState<PhonePaidScreen> {
                       icon: Icons.schedule_rounded,
                       selected: !_paid,
                       color: WashTheme.danger,
-                      onTap: () => setState(() => _paid = false),
+                      onTap: () => setState(() {
+                        _paid = false;
+                        _paymentMethod = null;
+                      }),
                     ),
                   ),
                 ],
               ),
+              if (_paid) ...[
+                const SizedBox(height: 20),
+                Text(
+                  'Paid by',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _PaymentOption(
+                        label: 'Cash',
+                        icon: Icons.payments_outlined,
+                        selected: _paymentMethod == PaymentMethod.cash,
+                        color: WashTheme.accent,
+                        onTap: () => setState(
+                            () => _paymentMethod = PaymentMethod.cash),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _PaymentOption(
+                        label: 'UPI',
+                        icon: Icons.qr_code_2_rounded,
+                        selected: _paymentMethod == PaymentMethod.upi,
+                        color: WashTheme.accent,
+                        onTap: () =>
+                            setState(() => _paymentMethod = PaymentMethod.upi),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
               const SizedBox(height: 32),
 
               ElevatedButton(
-                onPressed: _saving ? null : _save,
+                onPressed: (_saving || (_paid && _paymentMethod == null))
+                    ? null
+                    : _save,
                 style: ElevatedButton.styleFrom(
                   minimumSize: const Size(double.infinity, 64),
                 ),

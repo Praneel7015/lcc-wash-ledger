@@ -9,6 +9,7 @@ class WashDraft {
   final int amount;
   String? phone;
   bool paid;
+  String? paymentMethod; // 'cash' | 'upi' | null
 
   WashDraft({
     required this.plate,
@@ -19,11 +20,14 @@ class WashDraft {
     required this.amount,
     this.phone,
     this.paid = true,
+    this.paymentMethod,
   });
 
   WashDraft copyWith({
     String? phone,
     bool? paid,
+    String? paymentMethod,
+    bool clearPaymentMethod = false,
   }) =>
       WashDraft(
         plate: plate,
@@ -34,5 +38,8 @@ class WashDraft {
         amount: amount,
         phone: phone ?? this.phone,
         paid: paid ?? this.paid,
+        paymentMethod: clearPaymentMethod
+            ? null
+            : (paymentMethod ?? this.paymentMethod),
       );
 }

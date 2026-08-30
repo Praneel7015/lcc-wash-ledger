@@ -8,6 +8,7 @@ import '../../core/constants.dart';
 import '../../core/theme.dart';
 import '../../models/visit.dart';
 import '../../services/providers.dart';
+import '../../widgets/payment_method_dialog.dart';
 import '../../widgets/worker_app_bar.dart';
 
 class TodayWashesScreen extends ConsumerWidget {
@@ -19,16 +20,52 @@ class TodayWashesScreen extends ConsumerWidget {
     Visit visit,
   ) async {
     final newPaid = !visit.paid;
-    final action = newPaid ? 'mark as PAID' : 'mark as UNPAID';
+
+    if (newPaid) {
+      final method = await showPaymentMethodDialog(
+        context,
+        subtitle:
+            'Plate ${formatIndianPlate(visit.plate)} — ₹${visit.amount}',
+      );
+      if (method == null) return;
+
+      try {
+        await ref.read(firestoreServiceProvider).updateVisit(visit.id, {
+          'paid': true,
+          'paymentMethod': method,
+        });
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                '${formatIndianPlate(visit.plate)} marked paid (${PaymentMethod.label(method)})',
+              ),
+              backgroundColor: WashTheme.surfaceHigh,
+            ),
+          );
+        }
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Update failed: $e'),
+              backgroundColor: WashTheme.danger,
+            ),
+          );
+        }
+      }
+      return;
+    }
+
     final ok = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
         backgroundColor: WashTheme.surfaceCard,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text('${newPaid ? 'Mark paid' : 'Mark unpaid'}?'),
+        title: const Text('Mark unpaid?'),
         content: Text(
           'Plate ${formatIndianPlate(visit.plate)} — ₹${visit.amount}\n\n'
-          'This will $action for today\'s record.',
+          'This will mark the wash as unpaid for today\'s record.',
           style: const TextStyle(color: WashTheme.textSecondary, height: 1.4),
         ),
         actions: [
@@ -39,7 +76,7 @@ class TodayWashesScreen extends ConsumerWidget {
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
-            child: Text(newPaid ? 'Mark paid' : 'Mark unpaid'),
+            child: const Text('Mark unpaid'),
           ),
         ],
       ),
@@ -47,14 +84,15 @@ class TodayWashesScreen extends ConsumerWidget {
     if (ok != true) return;
 
     try {
-      await ref
-          .read(firestoreServiceProvider)
-          .updateVisit(visit.id, {'paid': newPaid});
+      await ref.read(firestoreServiceProvider).updateVisit(visit.id, {
+        'paid': false,
+        'paymentMethod': null,
+      });
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              '${formatIndianPlate(visit.plate)} marked ${newPaid ? 'paid' : 'unpaid'}',
+              '${formatIndianPlate(visit.plate)} marked unpaid',
             ),
             backgroundColor: WashTheme.surfaceHigh,
           ),
@@ -271,7 +309,11 @@ class _TodayWashTile extends StatelessWidget {
                     ),
                   ),
                   child: Text(
-                    visit.paid ? 'PAID' : 'UNPAID',
+                    visit.paid
+                        ? (visit.paymentMethod != null
+                            ? 'PAID · ${PaymentMethod.label(visit.paymentMethod).toUpperCase()}'
+                            : 'PAID')
+                        : 'UNPAID',
                     style: TextStyle(
                       color:
                           visit.paid ? WashTheme.success : WashTheme.danger,

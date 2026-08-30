@@ -97,7 +97,17 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
   void _exportCsv() {
     if (_visits == null || _visits!.isEmpty) return;
     final rows = [
-      ['Date', 'Time', 'Plate', 'Vehicle', 'Package', 'Amount', 'Paid', 'Phone'],
+      [
+        'Date',
+        'Time',
+        'Plate',
+        'Vehicle',
+        'Package',
+        'Amount',
+        'Paid',
+        'Paid by',
+        'Phone',
+      ],
       ..._visits!.map((v) => [
             DateFormat('yyyy-MM-dd').format(v.createdAt),
             DateFormat('HH:mm').format(v.createdAt),
@@ -106,6 +116,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
             WashPackage.label(v.packageId),
             v.amount,
             v.paid ? 'Yes' : 'No',
+            PaymentMethod.reportLabel(paid: v.paid, method: v.paymentMethod),
             v.phone ?? '',
           ]),
     ];
@@ -126,10 +137,12 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     final r = _effectiveRange;
     final rangeLabel =
         '${DateFormat('d MMM yyyy').format(r.start)} – ${DateFormat('d MMM yyyy').format(r.end)}';
-    final totalRevenue = visits.fold<int>(0, (s, v) => s + v.amount);
-    final paidRevenue =
-        visits.where((v) => v.paid).fold<int>(0, (s, v) => s + v.amount);
-    final pendingRevenue = totalRevenue - paidRevenue;
+    final breakdown = computeRevenueBreakdown(visits);
+    final totalRevenue = breakdown.total;
+    final cashRevenue = breakdown.cash;
+    final upiRevenue = breakdown.upi;
+    final unknownRevenue = breakdown.unknown;
+    final pendingRevenue = breakdown.pending;
     final countByType = <String, int>{};
     final revenueByType = <String, int>{};
     final countByPkg = <String, int>{};
@@ -247,9 +260,11 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
 
           // KPI cards
           kpiCard('TOTAL REVENUE', '₹$totalRevenue', gold),
-          kpiCard('COLLECTED CASH', '₹$paidRevenue', successColor),
-          if (pendingRevenue > 0)
-            kpiCard('PENDING BALANCE', '₹$pendingRevenue', dangerColor),
+          kpiCard('COLLECTED CASH', '₹$cashRevenue', successColor),
+          kpiCard('COLLECTED UPI', '₹$upiRevenue', gold),
+          if (unknownRevenue > 0)
+            kpiCard('UNKNOWN METHOD', '₹$unknownRevenue', textSecondary),
+          kpiCard('PENDING BALANCE', '₹$pendingRevenue', dangerColor),
           kpiCard('TOTAL WASHES', '${visits.length}', textPrimary),
           pw.SizedBox(height: 16),
 
@@ -286,16 +301,17 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
           pw.Table(
             border: pw.TableBorder.all(color: border, width: 0.5),
             columnWidths: {
-              0: const pw.FlexColumnWidth(1.8),
+              0: const pw.FlexColumnWidth(1.5),
               1: const pw.FlexColumnWidth(2),
-              2: const pw.FlexColumnWidth(2.5),
-              3: const pw.FlexColumnWidth(1.2),
-              4: const pw.FlexColumnWidth(1),
+              2: const pw.FlexColumnWidth(2.2),
+              3: const pw.FlexColumnWidth(1),
+              4: const pw.FlexColumnWidth(0.8),
+              5: const pw.FlexColumnWidth(0.8),
             },
             children: [
               pw.TableRow(
                 decoration: pw.BoxDecoration(color: dark),
-                children: ['Date', 'Plate', 'Package', 'Amount', 'Paid']
+                children: ['Date', 'Plate', 'Package', 'Amount', 'Paid', 'Paid by']
                     .map((h) => pw.Padding(
                           padding: const pw.EdgeInsets.all(6),
                           child: pw.Text(h,
@@ -313,6 +329,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                       WashPackage.label(v.packageId),
                       '₹${v.amount}',
                       v.paid ? 'Yes' : 'No',
+                      PaymentMethod.reportLabel(paid: v.paid, method: v.paymentMethod),
                     ]
                         .map((cell) => pw.Padding(
                               padding: const pw.EdgeInsets.all(6),
@@ -338,10 +355,12 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
   @override
   Widget build(BuildContext context) {
     final visits = _visits ?? [];
-    final totalRevenue = visits.fold<int>(0, (s, v) => s + v.amount);
-    final paidRevenue =
-        visits.where((v) => v.paid).fold<int>(0, (s, v) => s + v.amount);
-    final pendingRevenue = totalRevenue - paidRevenue;
+    final breakdown = computeRevenueBreakdown(visits);
+    final totalRevenue = breakdown.total;
+    final cashRevenue = breakdown.cash;
+    final upiRevenue = breakdown.upi;
+    final unknownRevenue = breakdown.unknown;
+    final pendingRevenue = breakdown.pending;
     final countByType = <String, int>{};
     final revenueByType = <String, int>{};
     final countByPkg = <String, int>{};
@@ -559,12 +578,23 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                                   runSpacing: 8,
                                   children: [
                                     _ReportTag(
-                                      label: 'Collected Cash',
-                                      value: '₹$paidRevenue',
+                                      label: 'Cash collected',
+                                      value: '₹$cashRevenue',
                                       color: WashTheme.success,
                                     ),
                                     _ReportTag(
-                                      label: 'Pending Balance',
+                                      label: 'UPI collected',
+                                      value: '₹$upiRevenue',
+                                      color: WashTheme.accent,
+                                    ),
+                                    if (unknownRevenue > 0)
+                                      _ReportTag(
+                                        label: 'Unknown method',
+                                        value: '₹$unknownRevenue',
+                                        color: WashTheme.textSecondary,
+                                      ),
+                                    _ReportTag(
+                                      label: 'Pending',
                                       value: '₹$pendingRevenue',
                                       color: pendingRevenue > 0
                                           ? WashTheme.danger

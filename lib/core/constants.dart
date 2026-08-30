@@ -126,9 +126,127 @@ String rateKey(String vehicleType, String packageId) =>
 // Photo retention: 90 days
 const int photoRetentionDays = 90;
 
-// India plate normalisation: strip spaces, uppercase
-String normalisePlate(String raw) =>
-    raw.replaceAll(RegExp(r'\s+'), '').toUpperCase();
+// ── Payment method ───────────────────────────────────────────────────────────
+
+class PaymentMethod {
+  static const String cash = 'cash';
+  static const String upi = 'upi';
+
+  static String label(String? method) {
+    switch (method) {
+      case cash:
+        return 'Cash';
+      case upi:
+        return 'UPI';
+      default:
+        return '';
+    }
+  }
+
+  /// For reports/exports — legacy paid visits without a method show as Unknown.
+  static String reportLabel({required bool paid, String? method}) {
+    if (!paid) return '';
+    switch (method) {
+      case cash:
+        return 'Cash';
+      case upi:
+        return 'UPI';
+      default:
+        return 'Unknown';
+    }
+  }
+}
+
+// ── India plate normalisation ─────────────────────────────────────────────────
+
+const _digitFix = {
+  'O': '0',
+  'I': '1',
+  'L': '1',
+  'S': '5',
+  'B': '8',
+  'Z': '2',
+  'G': '6',
+};
+
+const _letterFix = {'0': 'O', '1': 'I'};
+
+String _fixDigits(String s) =>
+    s.split('').map((c) => _digitFix[c] ?? c).join();
+
+String _fixLetters(String s) =>
+    s.split('').map((c) => _letterFix[c] ?? c).join();
+
+/// Position-aware plate normalisation — fixes O/0, I/1 etc. by slot.
+String slotNormalizePlate(String raw) {
+  final p = raw.replaceAll(RegExp(r'\s+'), '').toUpperCase();
+  if (p.isEmpty) return '';
+
+  final bh = RegExp(r'^(\d{2})(BH)(\d{4})([A-Z]{1,2})$').firstMatch(p);
+  if (bh != null) {
+    return '${_fixDigits(bh.group(1)!)}BH${_fixDigits(bh.group(3)!)}${_fixLetters(bh.group(4)!)}';
+  }
+
+  final bhFlexible =
+      RegExp(r'^([0-9OILSBZG]{2})(BH)([0-9OILSBZG]{4})([A-Z0-9]{1,2})$')
+          .firstMatch(p);
+  if (bhFlexible != null) {
+    final normalized =
+        '${_fixDigits(bhFlexible.group(1)!)}BH${_fixDigits(bhFlexible.group(3)!)}${_fixLetters(bhFlexible.group(4)!)}';
+    if (RegExp(r'^\d{2}BH\d{4}[A-Z]{1,2}$').hasMatch(normalized)) {
+      return normalized;
+    }
+  }
+
+  final va = RegExp(r'^([A-Z]{2})(VA)([A-Z]{1,2})(\d{4})$').firstMatch(p);
+  if (va != null) {
+    return '${_fixLetters(va.group(1)!)}VA${_fixLetters(va.group(3)!)}${_fixDigits(va.group(4)!)}';
+  }
+
+  final vaFlexible =
+      RegExp(r'^([A-Z0-9]{2})(VA)([A-Z0-9]{1,2})([0-9OILSBZG]{4})$')
+          .firstMatch(p);
+  if (vaFlexible != null) {
+    final normalized =
+        '${_fixLetters(vaFlexible.group(1)!)}VA${_fixLetters(vaFlexible.group(3)!)}${_fixDigits(vaFlexible.group(4)!)}';
+    if (RegExp(r'^[A-Z]{2}VA[A-Z]{1,2}\d{4}$').hasMatch(normalized)) {
+      return normalized;
+    }
+  }
+
+  final standard = _parseStandardPlate(p);
+  if (standard != null) return standard;
+
+  return p;
+}
+
+String? _parseStandardPlate(String p) {
+  if (p.length < 5) return null;
+  final state = _fixLetters(p.substring(0, 2));
+  if (!RegExp(r'^[A-Z]{2}$').hasMatch(state)) return null;
+
+  for (final distLen in [2, 1]) {
+    if (p.length < 2 + distLen + 1) continue;
+    final dist = _fixDigits(p.substring(2, 2 + distLen));
+    if (!RegExp(r'^\d{1,2}$').hasMatch(dist)) continue;
+
+    final afterDist = p.substring(2 + distLen);
+    for (var seriesLen = 3; seriesLen >= 0; seriesLen--) {
+      if (afterDist.length < seriesLen + 1) continue;
+      final seriesRaw = afterDist.substring(0, seriesLen);
+      final series = seriesLen == 0 ? '' : _fixLetters(seriesRaw);
+      if (seriesLen > 0 && !RegExp(r'^[A-Z]+$').hasMatch(series)) continue;
+
+      final num = _fixDigits(afterDist.substring(seriesLen));
+      if (!RegExp(r'^\d{1,4}$').hasMatch(num)) continue;
+
+      return '$state$dist$series$num';
+    }
+  }
+  return null;
+}
+
+String normalisePlate(String raw) => slotNormalizePlate(raw);
 
 /// Formats a normalised plate for display (e.g. KA01AB1234 → KA 01 AB 1234).
 String formatIndianPlate(String raw) {

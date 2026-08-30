@@ -17,6 +17,7 @@ interface Visit {
   packageId: string;
   amount: number;
   paid: boolean;
+  paymentMethod?: string | null;
   voided?: boolean;
   createdAt: Timestamp;
 }
@@ -24,6 +25,9 @@ interface Visit {
 interface DaySummary {
   total: number;
   revenue: number;
+  cashRevenue: number;
+  upiRevenue: number;
+  unknownRevenue: number;
   unpaid: number;
   byType: Record<string, number>;
   byPackage: Record<string, number>;
@@ -49,6 +53,13 @@ function labelType(t: string): string {
   );
 }
 
+function labelPaymentMethod(paid: boolean, method?: string | null): string {
+  if (!paid) return "";
+  if (method === "cash") return "Cash";
+  if (method === "upi") return "UPI";
+  return "Unknown";
+}
+
 function labelPkg(p: string): string {
   return (
     {
@@ -69,6 +80,9 @@ async function computeSummary(dayStart: Date, dayEnd: Date): Promise<DaySummary>
     .get();
 
   let revenue = 0;
+  let cashRevenue = 0;
+  let upiRevenue = 0;
+  let unknownRevenue = 0;
   let unpaid = 0;
   const byType: Record<string, number> = {};
   const byPackage: Record<string, number> = {};
@@ -76,14 +90,20 @@ async function computeSummary(dayStart: Date, dayEnd: Date): Promise<DaySummary>
   snap.docs.forEach((d) => {
     const v = d.data() as Visit;
     if (v.voided) return; // skip voided — filter client-side to avoid compound index
-    if (v.paid) revenue += v.amount;
-    else unpaid += v.amount;
+    if (v.paid) {
+      revenue += v.amount;
+      if (v.paymentMethod === "cash") cashRevenue += v.amount;
+      else if (v.paymentMethod === "upi") upiRevenue += v.amount;
+      else unknownRevenue += v.amount;
+    } else {
+      unpaid += v.amount;
+    }
     byType[v.vehicleType] = (byType[v.vehicleType] ?? 0) + 1;
     byPackage[v.packageId] = (byPackage[v.packageId] ?? 0) + 1;
   });
 
   const total = Object.values(byType).reduce((a, b) => a + b, 0);
-  return { total, revenue, unpaid, byType, byPackage };
+  return { total, revenue, cashRevenue, upiRevenue, unknownRevenue, unpaid, byType, byPackage };
 }
 
 function buildEmailHtml(summary: DaySummary, dateLabel: string): string {
@@ -113,10 +133,13 @@ function buildEmailHtml(summary: DaySummary, dateLabel: string): string {
 
   const kpis = [
     { label: "VEHICLES", value: `${summary.total}`, color: "#FAFAF8", size: "30px" },
-    { label: "REVENUE",  value: formatINR(summary.revenue), color: "#10B981", size: "24px" },
-    ...(summary.unpaid > 0
-      ? [{ label: "PENDING", value: formatINR(summary.unpaid), color: "#F43F5E", size: "24px" }]
+    { label: "REVENUE", value: formatINR(summary.revenue), color: "#10B981", size: "24px" },
+    { label: "CASH", value: formatINR(summary.cashRevenue), color: "#10B981", size: "20px" },
+    { label: "UPI", value: formatINR(summary.upiRevenue), color: "#C9952A", size: "20px" },
+    ...(summary.unknownRevenue > 0
+      ? [{ label: "UNKNOWN", value: formatINR(summary.unknownRevenue), color: "#9C9489", size: "20px" }]
       : []),
+    { label: "PENDING", value: formatINR(summary.unpaid), color: "#F43F5E", size: "20px" },
   ];
 
   // Each KPI is its own full-width row — no columns that can overflow.
@@ -271,7 +294,7 @@ async function sendDayEmail(dayStart: Date, dayEnd: Date): Promise<void> {
     .get();
 
   const csvRows: string[][] = [
-    ["Date", "Time", "Plate", "Vehicle", "Package", "Amount", "Paid"],
+    ["Date", "Time", "Plate", "Vehicle", "Package", "Amount", "Paid", "Paid by"],
   ];
   snap.docs.forEach((d) => {
     const v = d.data() as Visit;
@@ -285,6 +308,7 @@ async function sendDayEmail(dayStart: Date, dayEnd: Date): Promise<void> {
       labelPkg(v.packageId),
       String(v.amount),
       v.paid ? "Yes" : "No",
+      labelPaymentMethod(v.paid, v.paymentMethod),
     ]);
   });
   const csvContent = csvRows.map((row) => row.map((cell) => `"${cell.replace(/"/g, '""')}"`).join(",")).join("\n");

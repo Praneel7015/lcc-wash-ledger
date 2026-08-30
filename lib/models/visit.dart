@@ -2,6 +2,8 @@
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../core/constants.dart';
+
 class Visit {
   final String id;
   final String plate;
@@ -10,6 +12,7 @@ class Visit {
   final String packageId;
   final int amount;
   final bool paid;
+  final String? paymentMethod; // 'cash' | 'upi' | null
   final bool voided;
   final String? workerId;
   final DateTime createdAt;
@@ -24,6 +27,7 @@ class Visit {
     required this.packageId,
     required this.amount,
     required this.paid,
+    this.paymentMethod,
     this.voided = false,
     this.workerId,
     required this.createdAt,
@@ -41,6 +45,7 @@ class Visit {
       packageId: d['packageId'] as String,
       amount: (d['amount'] as num).toInt(),
       paid: d['paid'] as bool? ?? false,
+      paymentMethod: d['paymentMethod'] as String?,
       voided: d['voided'] as bool? ?? false,
       workerId: d['workerId'] as String?,
       createdAt: (d['createdAt'] as Timestamp).toDate(),
@@ -56,6 +61,7 @@ class Visit {
         'packageId': packageId,
         'amount': amount,
         'paid': paid,
+        if (paymentMethod != null) 'paymentMethod': paymentMethod,
         'voided': voided,
         'workerId': workerId,
         'createdAt': Timestamp.fromDate(createdAt),
@@ -69,6 +75,8 @@ class Visit {
     String? packageId,
     int? amount,
     bool? paid,
+    String? paymentMethod,
+    bool clearPaymentMethod = false,
     String? platePhotoUrl,
     String? frontPhotoUrl,
   }) =>
@@ -80,9 +88,59 @@ class Visit {
         packageId: packageId ?? this.packageId,
         amount: amount ?? this.amount,
         paid: paid ?? this.paid,
+        paymentMethod:
+            clearPaymentMethod ? null : (paymentMethod ?? this.paymentMethod),
+        voided: voided,
         workerId: workerId,
         createdAt: createdAt,
         platePhotoUrl: platePhotoUrl ?? this.platePhotoUrl,
         frontPhotoUrl: frontPhotoUrl ?? this.frontPhotoUrl,
       );
+}
+
+class RevenueBreakdown {
+  final int total;
+  final int cash;
+  final int upi;
+  final int unknown;
+  final int pending;
+
+  const RevenueBreakdown({
+    required this.total,
+    required this.cash,
+    required this.upi,
+    required this.unknown,
+    required this.pending,
+  });
+
+  int get collected => cash + upi + unknown;
+}
+
+RevenueBreakdown computeRevenueBreakdown(Iterable<Visit> visits) {
+  var total = 0;
+  var cash = 0;
+  var upi = 0;
+  var unknown = 0;
+  var pending = 0;
+
+  for (final v in visits) {
+    total += v.amount;
+    if (!v.paid) {
+      pending += v.amount;
+    } else if (v.paymentMethod == PaymentMethod.cash) {
+      cash += v.amount;
+    } else if (v.paymentMethod == PaymentMethod.upi) {
+      upi += v.amount;
+    } else {
+      unknown += v.amount;
+    }
+  }
+
+  return RevenueBreakdown(
+    total: total,
+    cash: cash,
+    upi: upi,
+    unknown: unknown,
+    pending: pending,
+  );
 }

@@ -9,6 +9,7 @@ import '../../core/constants.dart';
 import '../../core/theme.dart';
 import '../../models/visit.dart';
 import '../../services/providers.dart';
+import '../../widgets/payment_method_dialog.dart';
 
 class VisitDetailScreen extends ConsumerWidget {
   final String visitId;
@@ -71,11 +72,54 @@ class _VisitDetailState extends ConsumerState<_VisitDetail> {
 
   Future<void> _togglePaid() async {
     if (_updatingPaid) return;
-    setState(() => _updatingPaid = true);
     final newPaid = !_visit.paid;
+
+    if (newPaid) {
+      final method = await showPaymentMethodDialog(
+        context,
+        subtitle: 'Plate ${_visit.plate} — ₹${_visit.amount}',
+      );
+      if (method == null) return;
+
+      setState(() => _updatingPaid = true);
+      try {
+        await widget.svc.updateVisit(_visit.id, {
+          'paid': true,
+          'paymentMethod': method,
+        });
+        if (mounted) {
+          setState(() => _visit = _visit.copyWith(
+                paid: true,
+                paymentMethod: method,
+              ));
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Could not update payment: $e'),
+              backgroundColor: WashTheme.danger,
+            ),
+          );
+        }
+      } finally {
+        if (mounted) setState(() => _updatingPaid = false);
+      }
+      return;
+    }
+
+    setState(() => _updatingPaid = true);
     try {
-      await widget.svc.updateVisit(_visit.id, {'paid': newPaid});
-      if (mounted) setState(() => _visit = _visit.copyWith(paid: newPaid));
+      await widget.svc.updateVisit(_visit.id, {
+        'paid': false,
+        'paymentMethod': null,
+      });
+      if (mounted) {
+        setState(() => _visit = _visit.copyWith(
+              paid: false,
+              clearPaymentMethod: true,
+            ));
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -88,6 +132,13 @@ class _VisitDetailState extends ConsumerState<_VisitDetail> {
     } finally {
       if (mounted) setState(() => _updatingPaid = false);
     }
+  }
+
+  String _paidBadgeLabel() {
+    if (!_visit.paid) return 'UNPAID';
+    if (_visit.paymentMethod == PaymentMethod.cash) return 'PAID · CASH';
+    if (_visit.paymentMethod == PaymentMethod.upi) return 'PAID · UPI';
+    return 'PAID';
   }
 
   @override
@@ -179,7 +230,7 @@ class _VisitDetailState extends ConsumerState<_VisitDetail> {
                               ),
                             )
                           : Text(
-                              visit.paid ? 'PAID' : 'UNPAID',
+                              _paidBadgeLabel(),
                               style: TextStyle(
                                 color: visit.paid
                                     ? WashTheme.success
@@ -294,6 +345,20 @@ class _VisitDetailState extends ConsumerState<_VisitDetail> {
                       ),
                     ),
                   ),
+                  if (visit.paid && visit.paymentMethod != null) ...[
+                    const Divider(height: 24),
+                    _DetailRow(
+                      'Paid by',
+                      Text(
+                        PaymentMethod.label(visit.paymentMethod),
+                        style: const TextStyle(
+                          color: WashTheme.textPrimary,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ],
                   if (visit.phone != null && visit.phone!.isNotEmpty) ...[
                     const Divider(height: 24),
                     _DetailRow(

@@ -11,6 +11,7 @@ import '../../core/constants.dart';
 import '../../core/theme.dart';
 import '../../models/visit.dart';
 import '../../services/providers.dart';
+import '../../widgets/payment_method_dialog.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
@@ -217,11 +218,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       (v.phone ?? '').contains(_searchQuery))
                   .toList();
 
-          final totalRevenue = allVisits.fold<int>(0, (s, v) => s + v.amount);
-          final paidRevenue = allVisits
-              .where((v) => v.paid)
-              .fold<int>(0, (s, v) => s + v.amount);
-          final pendingRevenue = totalRevenue - paidRevenue;
+          final breakdown = computeRevenueBreakdown(allVisits);
+          final totalRevenue = breakdown.total;
+          final cashRevenue = breakdown.cash;
+          final upiRevenue = breakdown.upi;
+          final unknownRevenue = breakdown.unknown;
+          final pendingRevenue = breakdown.pending;
           final countByType = <String, int>{};
           for (final v in allVisits) {
             countByType[v.vehicleType] = (countByType[v.vehicleType] ?? 0) + 1;
@@ -331,10 +333,21 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                     runSpacing: 8,
                                     children: [
                                       _StatusPill(
-                                        label: 'Collected',
-                                        amount: '₹$paidRevenue',
+                                        label: 'Cash',
+                                        amount: '₹$cashRevenue',
                                         color: WashTheme.success,
                                       ),
+                                      _StatusPill(
+                                        label: 'UPI',
+                                        amount: '₹$upiRevenue',
+                                        color: WashTheme.accent,
+                                      ),
+                                      if (unknownRevenue > 0)
+                                        _StatusPill(
+                                          label: 'Unknown',
+                                          amount: '₹$unknownRevenue',
+                                          color: WashTheme.textSecondary,
+                                        ),
                                       _StatusPill(
                                         label: 'Pending',
                                         amount: '₹$pendingRevenue',
@@ -715,10 +728,37 @@ class _VisitTile extends ConsumerWidget {
 
   Future<void> _togglePaid(BuildContext context, WidgetRef ref) async {
     final newPaid = !visit.paid;
+
+    if (newPaid) {
+      final method = await showPaymentMethodDialog(
+        context,
+        subtitle: 'Plate ${visit.plate} — ₹${visit.amount}',
+      );
+      if (method == null) return;
+
+      try {
+        await ref.read(firestoreServiceProvider).updateVisit(visit.id, {
+          'paid': true,
+          'paymentMethod': method,
+        });
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Could not update payment: $e'),
+              backgroundColor: WashTheme.danger,
+            ),
+          );
+        }
+      }
+      return;
+    }
+
     try {
-      await ref
-          .read(firestoreServiceProvider)
-          .updateVisit(visit.id, {'paid': newPaid});
+      await ref.read(firestoreServiceProvider).updateVisit(visit.id, {
+        'paid': false,
+        'paymentMethod': null,
+      });
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -729,6 +769,13 @@ class _VisitTile extends ConsumerWidget {
         );
       }
     }
+  }
+
+  String _paidBadgeLabel() {
+    if (!visit.paid) return 'UNPAID';
+    if (visit.paymentMethod == PaymentMethod.cash) return 'PAID · CASH';
+    if (visit.paymentMethod == PaymentMethod.upi) return 'PAID · UPI';
+    return 'PAID';
   }
 
   @override
@@ -836,7 +883,7 @@ class _VisitTile extends ConsumerWidget {
                             ),
                           ),
                           child: Text(
-                            visit.paid ? 'PAID' : 'UNPAID',
+                            _paidBadgeLabel(),
                             style: TextStyle(
                               color: visit.paid
                                   ? WashTheme.success
