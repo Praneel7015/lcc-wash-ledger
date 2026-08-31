@@ -22,12 +22,56 @@ class DashboardScreen extends ConsumerStatefulWidget {
 
 class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   String _searchQuery = '';
+  DateTime _selectedDate = DateTime.now();
+
+  bool get _isToday => _isSameDay(_selectedDate, DateTime.now());
+
+  bool _isSameDay(DateTime a, DateTime b) =>
+      a.year == b.year && a.month == b.month && a.day == b.day;
+
+  void _goToPrevDay() => setState(() {
+        _searchQuery = '';
+        _selectedDate = _selectedDate.subtract(const Duration(days: 1));
+      });
+
+  void _goToNextDay() {
+    if (_isToday) return;
+    setState(() {
+      _searchQuery = '';
+      _selectedDate = _selectedDate.add(const Duration(days: 1));
+    });
+  }
+
+  void _goToToday() => setState(() {
+        _searchQuery = '';
+        _selectedDate = DateTime.now();
+      });
+
+  Future<void> _pickDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate,
+      firstDate: DateTime(2024),
+      lastDate: DateTime.now(),
+      builder: (ctx, child) => Theme(
+        data: Theme.of(ctx).copyWith(
+          colorScheme: const ColorScheme.dark(primary: WashTheme.accent),
+        ),
+        child: child!,
+      ),
+    );
+    if (picked != null) {
+      setState(() {
+        _searchQuery = '';
+        _selectedDate = picked;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final svc = ref.watch(firestoreServiceProvider);
-    final today = DateTime.now();
-    final todayStream = svc.visitsForDay(today);
+    final todayStream = svc.visitsForDay(_selectedDate);
 
     return Scaffold(
       backgroundColor: WashTheme.bg,
@@ -77,46 +121,80 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                         ),
                         if (MediaQuery.of(context).size.width > 480) ...[
                           const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: WashTheme.success.withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(4),
-                              border: Border.all(
-                                  color: WashTheme.success
-                                      .withValues(alpha: 0.3)),
-                            ),
-                            child: const Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                CircleAvatar(
-                                  radius: 3,
-                                  backgroundColor: WashTheme.success,
-                                ),
-                                SizedBox(width: 4),
-                                Text(
-                                  'LIVE',
-                                  style: TextStyle(
-                                    color: WashTheme.success,
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w800,
+                          if (_isToday)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: WashTheme.success.withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(4),
+                                border: Border.all(
+                                    color: WashTheme.success
+                                        .withValues(alpha: 0.3)),
+                              ),
+                              child: const Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  CircleAvatar(
+                                    radius: 3,
+                                    backgroundColor: WashTheme.success,
                                   ),
-                                ),
-                              ],
+                                  SizedBox(width: 4),
+                                  Text(
+                                    'LIVE',
+                                    style: TextStyle(
+                                      color: WashTheme.success,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
                         ],
                       ],
                     ),
                     if (MediaQuery.of(context).size.width > 480)
-                      Text(
-                        DateFormat('EEEE, d MMMM yyyy').format(today),
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: WashTheme.textSecondary,
-                          fontWeight: FontWeight.w400,
-                        ),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          GestureDetector(
+                            onTap: _goToPrevDay,
+                            child: const Icon(
+                              Icons.chevron_left_rounded,
+                              size: 18,
+                              color: WashTheme.textSecondary,
+                            ),
+                          ),
+                          GestureDetector(
+                            onTap: _pickDate,
+                            child: Text(
+                              DateFormat(_isToday
+                                      ? 'EEEE, d MMMM yyyy'
+                                      : 'EEE, d MMM yyyy')
+                                  .format(_selectedDate),
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: _isToday
+                                    ? WashTheme.textSecondary
+                                    : WashTheme.accent,
+                                fontWeight: _isToday
+                                    ? FontWeight.w400
+                                    : FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                          GestureDetector(
+                            onTap: _isToday ? null : _goToNextDay,
+                            child: Icon(
+                              Icons.chevron_right_rounded,
+                              size: 18,
+                              color: _isToday
+                                  ? WashTheme.textMuted
+                                  : WashTheme.textSecondary,
+                            ),
+                          ),
+                        ],
                       ),
                   ],
                 ),
@@ -287,16 +365,20 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                     mainAxisAlignment:
                                         MainAxisAlignment.spaceBetween,
                                     children: [
-                                      const Text(
-                                        'TODAY\'S REVENUE',
-                                        style: TextStyle(
+                                      Text(
+                                        _isToday
+                                            ? 'TODAY\'S REVENUE'
+                                            : DateFormat('EEE, d MMM')
+                                                .format(_selectedDate)
+                                                .toUpperCase(),
+                                        style: const TextStyle(
                                           color: WashTheme.textSecondary,
                                           fontSize: 12,
                                           fontWeight: FontWeight.w700,
                                           letterSpacing: 1.2,
                                         ),
                                       ),
-                                      if (!narrow) closeDayBtn,
+                                      if (!narrow && _isToday) closeDayBtn,
                                     ],
                                   ),
                                   const SizedBox(height: 8),
@@ -357,7 +439,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                       ),
                                     ],
                                   ),
-                                  if (narrow) ...[
+                                  if (narrow && _isToday) ...[
                                     const SizedBox(height: 16),
                                     closeDayBtn,
                                   ],
@@ -475,7 +557,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                     CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    'Live Log (${visits.length})',
+                                    _isToday
+                                        ? 'Live Log (${visits.length})'
+                                        : 'Visit Log (${visits.length})',
                                     style: const TextStyle(
                                       color: WashTheme.textPrimary,
                                       fontSize: 16,
@@ -490,7 +574,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                             return Row(
                               children: [
                                 Text(
-                                  'Live Vehicle Log (${visits.length})',
+                                  _isToday
+                                      ? 'Live Vehicle Log (${visits.length})'
+                                      : 'Vehicle Log (${visits.length})',
                                   style: const TextStyle(
                                     color: WashTheme.textPrimary,
                                     fontSize: 16,
@@ -511,6 +597,64 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   ),
 
                   const SliverToBoxAdapter(child: SizedBox(height: 12)),
+
+                  // Past-day read-only banner
+                  if (!_isToday)
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: WashTheme.accent.withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(
+                                color: WashTheme.accent.withValues(alpha: 0.25)),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.history_rounded,
+                                  size: 16, color: WashTheme.accent),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'Viewing ${DateFormat('EEEE, d MMMM yyyy').format(_selectedDate)} — read only',
+                                  style: const TextStyle(
+                                    color: WashTheme.accent,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                              GestureDetector(
+                                onTap: _goToToday,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 10, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color:
+                                        WashTheme.accent.withValues(alpha: 0.15),
+                                    borderRadius: BorderRadius.circular(6),
+                                    border: Border.all(
+                                        color: WashTheme.accent
+                                            .withValues(alpha: 0.35)),
+                                  ),
+                                  child: const Text(
+                                    'Back to Today',
+                                    style: TextStyle(
+                                      color: WashTheme.accent,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
 
                   // ── Visit List ─────────────────────────────────────────────
                   if (visits.isEmpty)
@@ -536,7 +680,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                               const SizedBox(height: 16),
                               Text(
                                 _searchQuery.isEmpty
-                                    ? 'No vehicles logged today yet'
+                                    ? (_isToday
+                                        ? 'No vehicles logged today yet'
+                                        : 'No vehicles were logged on this day')
                                     : 'No matching records for "$_searchQuery"',
                                 style: const TextStyle(
                                   color: WashTheme.textPrimary,
@@ -545,9 +691,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                 ),
                               ),
                               const SizedBox(height: 6),
-                              const Text(
-                                'Vehicle scans logged by workers will stream here instantly.',
-                                style: TextStyle(
+                              Text(
+                                _isToday
+                                    ? 'Vehicle scans logged by workers will stream here instantly.'
+                                    : 'No wash records found for this date.',
+                                style: const TextStyle(
                                   color: WashTheme.textMuted,
                                   fontSize: 13,
                                 ),
@@ -562,7 +710,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       sliver: SliverList(
                         delegate: SliverChildBuilderDelegate(
-                          (ctx, i) => _VisitTile(visit: visits[i]),
+                          (ctx, i) => _VisitTile(
+                            visit: visits[i],
+                            readOnly: !_isToday,
+                          ),
                           childCount: visits.length,
                         ),
                       ),
@@ -724,7 +875,8 @@ class _TypeMetricCard extends StatelessWidget {
 
 class _VisitTile extends ConsumerWidget {
   final Visit visit;
-  const _VisitTile({required this.visit});
+  final bool readOnly;
+  const _VisitTile({required this.visit, this.readOnly = false});
 
   Future<void> _togglePaid(BuildContext context, WidgetRef ref) async {
     final newPaid = !visit.paid;
@@ -867,7 +1019,7 @@ class _VisitTile extends ConsumerWidget {
                       ),
                       const SizedBox(height: 4),
                       GestureDetector(
-                        onTap: () => _togglePaid(context, ref),
+                        onTap: readOnly ? null : () => _togglePaid(context, ref),
                         child: Container(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 8, vertical: 3),
