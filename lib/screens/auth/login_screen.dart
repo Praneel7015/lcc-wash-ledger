@@ -1,4 +1,4 @@
-// Login screen — workers enter email+password. Web shows owner form.
+// Login screen — workers enter username+password (mobile), owners enter email (web).
 // Centered card layout that works on all browsers via Positioned.fill.
 
 import 'package:firebase_auth/firebase_auth.dart';
@@ -17,6 +17,17 @@ class LoginScreen extends StatefulWidget {
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
+// Workers log in with a short username (e.g. "captain1").
+// The app turns it into captain1@lcc.app before calling Firebase.
+// Owners (web) still use their real email directly.
+const _workerEmailDomain = '@lcc.app';
+
+String _resolveEmail(String input) {
+  final trimmed = input.trim();
+  if (kIsWeb || trimmed.contains('@')) return trimmed;
+  return '$trimmed$_workerEmailDomain';
+}
+
 class _LoginScreenState extends State<LoginScreen> {
   final _emailCtrl = TextEditingController();
   final _passCtrl = TextEditingController();
@@ -33,7 +44,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _login() async {
     if (_emailCtrl.text.trim().isEmpty || _passCtrl.text.isEmpty) {
-      setState(() => _error = 'Please enter your email and password.');
+      setState(() => _error = kIsWeb
+          ? 'Please enter your email and password.'
+          : 'Please enter your username and password.');
       return;
     }
 
@@ -44,7 +57,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
     try {
       await FirebaseAuth.instance.signInWithEmailAndPassword(
-        email: _emailCtrl.text.trim(),
+        email: _resolveEmail(_emailCtrl.text),
         password: _passCtrl.text,
       );
       if (mounted) {
@@ -208,18 +221,29 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                           const SizedBox(height: 32),
 
-                          // Email
+                          // Username (mobile) / Email (web)
                           TextField(
                             controller: _emailCtrl,
-                            keyboardType: TextInputType.emailAddress,
+                            keyboardType: kIsWeb
+                                ? TextInputType.emailAddress
+                                : TextInputType.text,
                             textInputAction: TextInputAction.next,
+                            autocorrect: false,
+                            enableSuggestions: false,
                             style: const TextStyle(
                                 color: WashTheme.textPrimary),
-                            decoration: const InputDecoration(
-                              labelText: 'Email Address',
-                              hintText: 'owner@sindhole.com',
-                              prefixIcon: Icon(Icons.mail_outline_rounded,
-                                  color: WashTheme.textSecondary, size: 20),
+                            decoration: InputDecoration(
+                              labelText:
+                                  kIsWeb ? 'Email Address' : 'Username',
+                              hintText: kIsWeb
+                                  ? 'owner@sindhole.com'
+                                  : 'captain1',
+                              prefixIcon: Icon(
+                                  kIsWeb
+                                      ? Icons.mail_outline_rounded
+                                      : Icons.person_outline_rounded,
+                                  color: WashTheme.textSecondary,
+                                  size: 20),
                             ),
                           ),
                           const SizedBox(height: 16),
