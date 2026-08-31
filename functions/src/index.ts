@@ -1,6 +1,5 @@
 import { initializeApp } from "firebase-admin/app";
 import { getFirestore, Timestamp } from "firebase-admin/firestore";
-import { getStorage } from "firebase-admin/storage";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { onDocumentCreated } from "firebase-functions/v2/firestore";
 import { logger } from "firebase-functions";
@@ -369,36 +368,3 @@ export const manualDayClose = onDocumentCreated("emailTasks/{id}", async (event)
     throw err;
   }
 });
-
-// ── Storage lifecycle: delete photos older than 90 days ──────────────────────
-
-export const cleanOldPhotos = onSchedule(
-  { schedule: "0 2 * * *", timeZone: "Asia/Kolkata" },
-  async () => {
-    const cutoff = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
-    const snap = await db
-      .collection("visits")
-      .where("createdAt", "<", Timestamp.fromDate(cutoff))
-      .select("platePhotoUrl", "frontPhotoUrl")
-      .get();
-
-    const bucket = getStorage().bucket();
-    let deleted = 0;
-    for (const doc of snap.docs) {
-      const data = doc.data();
-      for (const field of ["platePhotoUrl", "frontPhotoUrl"] as const) {
-        const url: string | undefined = data[field];
-        if (!url) continue;
-        try {
-          const match = url.match(/\/o\/(.+?)\?/);
-          if (!match) continue;
-          await bucket.file(decodeURIComponent(match[1])).delete();
-          deleted++;
-        } catch {
-          // File already deleted — ignore
-        }
-      }
-    }
-    logger.info(`Cleaned ${deleted} old photos`);
-  }
-);
