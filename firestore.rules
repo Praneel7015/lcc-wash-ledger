@@ -62,5 +62,11 @@ service cloud.firestore {
       allow read: if isSignedIn();
       allow write: if isOwner();
     }
+
+    // Operator name registry — workers write their own doc, owner reads all
+    match /users/{uid} {
+      allow read: if isOwner();
+      allow create, update: if isSignedIn() && request.auth.uid == uid;
+    }
   }
 }

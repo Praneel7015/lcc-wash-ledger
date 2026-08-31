@@ -30,6 +30,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
   ReportRange _range = ReportRange.month;
   DateTimeRange? _custom;
   List<Visit>? _visits;
+  Map<String, String> _operatorNames = {};
   bool _loading = false;
 
   DateTimeRange get _effectiveRange {
@@ -63,7 +64,18 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
       final r = _effectiveRange;
       final svc = ref.read(firestoreServiceProvider);
       final visits = await svc.visitsForRange(r.start, r.end);
-      if (mounted) setState(() => _visits = visits);
+      // Resolve operator UIDs to display names in one batch.
+      final uids = visits
+          .map((v) => v.workerId)
+          .whereType<String>()
+          .toSet();
+      final names = await svc.fetchOperatorNames(uids);
+      if (mounted) {
+        setState(() {
+          _visits = visits;
+          _operatorNames = names;
+        });
+      }
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -139,6 +151,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
         'Amount',
         'Paid',
         'Paid by',
+        'Operator',
         'Phone',
       ],
       ..._visits!.map((v) => [
@@ -150,6 +163,9 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
             v.amount,
             v.paid ? 'Yes' : 'No',
             PaymentMethod.reportLabel(paid: v.paid, method: v.paymentMethod),
+            v.workerId != null
+                ? (_operatorNames[v.workerId!] ?? v.workerId!)
+                : '',
             v.phone ?? '',
           ]),
     ];
@@ -172,6 +188,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
       visits: visits,
       packageLabels: labels,
       breakdown: computeRevenueBreakdown(visits),
+      operatorNames: _operatorNames,
     );
 
     final bytes = await ReportPdfService.build(input);

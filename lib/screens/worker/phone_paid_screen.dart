@@ -1,6 +1,8 @@
 // Screen 5: phone number + paid toggle + save.
 // Phone pre-fills if returning customer. Saves visit to Firestore + uploads photos.
 
+import 'dart:async';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -48,7 +50,16 @@ class _PhonePaidScreenState extends ConsumerState<PhonePaidScreen> {
     try {
       final svc = ref.read(firestoreServiceProvider);
       final storage = ref.read(storageServiceProvider);
-      final uid = FirebaseAuth.instance.currentUser?.uid;
+      final fbUser = FirebaseAuth.instance.currentUser;
+      final uid = fbUser?.uid;
+
+      // Keep the operator name in Firestore so reports can resolve UID → name.
+      if (uid != null) {
+        final displayName = fbUser?.displayName?.trim();
+        if (displayName != null && displayName.isNotEmpty) {
+          unawaited(svc.upsertOperator(uid, displayName));
+        }
+      }
 
       // Upload both photos in parallel
       final results = await Future.wait<String>([

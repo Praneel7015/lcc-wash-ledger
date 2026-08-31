@@ -17,12 +17,15 @@ class ReportPdfInput {
   final List<Visit> visits;
   final Map<String, String> packageLabels;
   final RevenueBreakdown breakdown;
+  /// uid → display name; used to show operator names in the report.
+  final Map<String, String> operatorNames;
 
   const ReportPdfInput({
     required this.range,
     required this.visits,
     required this.packageLabels,
     required this.breakdown,
+    this.operatorNames = const {},
   });
 }
 
@@ -187,6 +190,7 @@ class ReportPdfService {
             'Amount',
             'Paid',
             'Paid by',
+            'Operator',
             'Phone',
           ]
               .map((h) => cell(h, header: true))
@@ -198,6 +202,9 @@ class ReportPdfService {
         paid: v.paid,
         method: v.paymentMethod,
       );
+      final operatorName = v.workerId != null
+          ? (input.operatorNames[v.workerId!] ?? v.workerId!)
+          : '';
       return pw.TableRow(
         decoration: stripe
             ? const pw.BoxDecoration(color: _stripe)
@@ -211,6 +218,7 @@ class ReportPdfService {
           '₹${v.amount}',
           v.paid ? 'Yes' : 'No',
           paidBy,
+          operatorName,
           v.phone ?? '',
         ].map((t) => cell(t)).toList(),
       );
@@ -231,11 +239,12 @@ class ReportPdfService {
           1: const pw.FlexColumnWidth(0.9),
           2: const pw.FlexColumnWidth(1.6),
           3: const pw.FlexColumnWidth(1.3),
-          4: const pw.FlexColumnWidth(2.2),
+          4: const pw.FlexColumnWidth(2.0),
           5: const pw.FlexColumnWidth(0.9),
           6: const pw.FlexColumnWidth(0.7),
           7: const pw.FlexColumnWidth(1.0),
-          8: const pw.FlexColumnWidth(1.3),
+          8: const pw.FlexColumnWidth(1.2),
+          9: const pw.FlexColumnWidth(1.3),
         },
         children: rows,
       );

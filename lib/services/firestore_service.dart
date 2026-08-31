@@ -192,6 +192,33 @@ class FirestoreService {
     await batch.commit();
   }
 
+  // ── Operators ────────────────────────────────────────────────────────
+
+  /// Records the operator's display name so the owner dashboard can show
+  /// a human-readable name instead of a raw Firebase UID.
+  Future<void> upsertOperator(String uid, String name) {
+    return _db.collection('users').doc(uid).set(
+      {'name': name},
+      SetOptions(merge: true),
+    );
+  }
+
+  /// Resolves a set of worker UIDs to their display names.
+  /// Returns a map of uid → name (missing entries fall back to the UID).
+  Future<Map<String, String>> fetchOperatorNames(Set<String> uids) async {
+    if (uids.isEmpty) return {};
+    final futures = uids.map(
+      (uid) => _db.collection('users').doc(uid).get(),
+    );
+    final docs = await Future.wait(futures);
+    final result = <String, String>{};
+    for (final doc in docs) {
+      final name = (doc.data()?['name'] as String?)?.trim();
+      result[doc.id] = (name != null && name.isNotEmpty) ? name : doc.id;
+    }
+    return result;
+  }
+
   // ── Close-day trigger ────────────────────────────────────────────────
 
   Future<void> triggerCloseDayEmail() async {

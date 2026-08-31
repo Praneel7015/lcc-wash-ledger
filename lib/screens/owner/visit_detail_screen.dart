@@ -23,15 +23,20 @@ class VisitDetailScreen extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('Wash Record Details'),
       ),
-      body: FutureBuilder<Visit?>(
-        future: svc.getVisit(visitId),
+      body: FutureBuilder<(Visit?, String?)>(
+        future: svc.getVisit(visitId).then((visit) async {
+          if (visit?.workerId == null) return (visit, null);
+          final names = await svc.fetchOperatorNames({visit!.workerId!});
+          return (visit, names[visit.workerId!]);
+        }),
         builder: (ctx, snap) {
           if (snap.connectionState == ConnectionState.waiting) {
             return const Center(
               child: CircularProgressIndicator(color: WashTheme.accent),
             );
           }
-          final visit = snap.data;
+          final visit = snap.data?.$1;
+          final operatorName = snap.data?.$2;
           if (visit == null) {
             return const Center(
               child: Text(
@@ -40,7 +45,7 @@ class VisitDetailScreen extends ConsumerWidget {
               ),
             );
           }
-          return _VisitDetail(visit: visit, svc: svc);
+          return _VisitDetail(visit: visit, svc: svc, operatorName: operatorName);
         },
       ),
     );
@@ -50,10 +55,12 @@ class VisitDetailScreen extends ConsumerWidget {
 class _VisitDetail extends ConsumerStatefulWidget {
   final Visit visit;
   final FirestoreService svc;
+  final String? operatorName;
 
   const _VisitDetail({
     required this.visit,
     required this.svc,
+    this.operatorName,
   });
 
   @override
@@ -373,16 +380,23 @@ class _VisitDetailState extends ConsumerState<_VisitDetail> {
                       ),
                     ),
                   ],
-                  if (visit.workerId != null) ...[
+                  if (_visit.workerId != null) ...[
                     const Divider(height: 24),
                     _DetailRow(
-                      'Operator ID',
+                      'Operator',
                       Text(
-                        visit.workerId!,
-                        style: const TextStyle(
-                          color: WashTheme.textMuted,
-                          fontSize: 12,
-                          fontFamily: 'JetBrains Mono',
+                        widget.operatorName ?? _visit.workerId!,
+                        style: TextStyle(
+                          color: widget.operatorName != null
+                              ? WashTheme.textPrimary
+                              : WashTheme.textMuted,
+                          fontSize: widget.operatorName != null ? 14 : 12,
+                          fontFamily: widget.operatorName != null
+                              ? null
+                              : 'JetBrains Mono',
+                          fontWeight: widget.operatorName != null
+                              ? FontWeight.w600
+                              : FontWeight.normal,
                         ),
                       ),
                     ),
