@@ -312,6 +312,113 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               constraints: const BoxConstraints(maxWidth: 1080),
               child: CustomScrollView(
                 slivers: [
+                  // ── Mobile date navigation (hidden on wide screens) ────────
+                  if (MediaQuery.of(context).size.width <= 480)
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 4, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: WashTheme.surfaceCard,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: WashTheme.border),
+                          ),
+                          child: Row(
+                            children: [
+                              // Prev arrow
+                              IconButton(
+                                icon: const Icon(
+                                    Icons.chevron_left_rounded,
+                                    size: 22),
+                                color: WashTheme.textSecondary,
+                                onPressed: _goToPrevDay,
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(
+                                    minWidth: 36, minHeight: 36),
+                              ),
+                              // Tappable date label
+                              Expanded(
+                                child: GestureDetector(
+                                  onTap: _pickDate,
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        _isToday ? 'TODAY' : 'PAST DAY',
+                                        style: TextStyle(
+                                          fontSize: 9,
+                                          fontWeight: FontWeight.w800,
+                                          letterSpacing: 1.2,
+                                          color: _isToday
+                                              ? WashTheme.success
+                                              : WashTheme.accent,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text(
+                                            DateFormat('EEE, d MMM yyyy')
+                                                .format(_selectedDate),
+                                            style: TextStyle(
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.w700,
+                                              color: _isToday
+                                                  ? WashTheme.textPrimary
+                                                  : WashTheme.accent,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 4),
+                                          Icon(
+                                            Icons.expand_more_rounded,
+                                            size: 14,
+                                            color: _isToday
+                                                ? WashTheme.textMuted
+                                                : WashTheme.accent,
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              // Next arrow or Back to Today
+                              _isToday
+                                  ? IconButton(
+                                      icon: const Icon(
+                                          Icons.chevron_right_rounded,
+                                          size: 22),
+                                      color: WashTheme.textMuted,
+                                      onPressed: null,
+                                      padding: EdgeInsets.zero,
+                                      constraints: const BoxConstraints(
+                                          minWidth: 36, minHeight: 36),
+                                    )
+                                  : TextButton(
+                                      onPressed: _goToToday,
+                                      style: TextButton.styleFrom(
+                                        foregroundColor: WashTheme.accent,
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 8),
+                                        minimumSize: const Size(0, 36),
+                                        textStyle: const TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                      child: const Text('Today'),
+                                    ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+
                   // ── Hero KPI & Metrics ─────────────────────────────────────
                   SliverToBoxAdapter(
                     child: Padding(
