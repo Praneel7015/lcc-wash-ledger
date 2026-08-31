@@ -344,10 +344,10 @@ function istMidnightToday(): Date {
   );
 }
 
-// ── Scheduled: runs at 9:30pm IST (16:00 UTC) every day ──────────────────────
+// ── Scheduled: runs at 9:30 PM IST every day ─────────────────────────────────
 
 export const scheduledDayClose = onSchedule(
-  { schedule: "0 16 * * *", timeZone: "Asia/Kolkata" },
+  { schedule: "30 21 * * *", timeZone: "Asia/Kolkata" },
   async () => {
     await sendDayEmail(istMidnightToday(), new Date());
   }
