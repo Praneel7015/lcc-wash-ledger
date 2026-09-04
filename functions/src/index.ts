@@ -34,6 +34,16 @@ interface DaySummary {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
+/** Package labels are owner-authored, so they are interpolated into the email
+ *  HTML as text, never as markup. */
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
 function formatINR(n: number): string {
   return new Intl.NumberFormat("en-IN", {
     style: "currency",
@@ -59,16 +69,37 @@ function labelPaymentMethod(paid: boolean, method?: string | null): string {
   return "Unknown";
 }
 
-function labelPkg(p: string): string {
-  return (
-    {
-      exterior: "Express Exterior Wash",
-      full: "Exterior + Interior Wash",
-      underbody: "Exterior + Interior + Under Body",
-      detailing: "Full Detailing",
-      bike_wash: "Express Bike Wash",
-    }[p] ?? p
-  );
+// Fallback names for the original seed packages only.
+const SEED_PACKAGE_LABELS: Record<string, string> = {
+  exterior: "Express Exterior Wash",
+  full: "Exterior + Interior Wash",
+  underbody: "Exterior + Interior + Under Body",
+  detailing: "Full Detailing",
+  bike_wash: "Express Bike Wash",
+};
+
+/**
+ * Package labels are editable in the owner dashboard and live in the
+ * `packages` collection. Reading them here means packages the owner created
+ * show their real name in the email and CSV instead of a raw document id.
+ */
+async function loadPackageLabels(): Promise<Record<string, string>> {
+  try {
+    const snap = await db.collection("packages").get();
+    const labels: Record<string, string> = { ...SEED_PACKAGE_LABELS };
+    snap.docs.forEach((d) => {
+      const label = d.data().label;
+      if (typeof label === "string" && label.trim()) labels[d.id] = label.trim();
+    });
+    return labels;
+  } catch (err) {
+    logger.warn("Could not read package labels, using seed names.", err);
+    return { ...SEED_PACKAGE_LABELS };
+  }
+}
+
+function labelPkg(p: string, labels: Record<string, string>): string {
+  return labels[p] ?? SEED_PACKAGE_LABELS[p] ?? p;
 }
 
 async function computeSummary(dayStart: Date, dayEnd: Date): Promise<DaySummary> {
@@ -105,7 +136,11 @@ async function computeSummary(dayStart: Date, dayEnd: Date): Promise<DaySummary>
   return { total, revenue, cashRevenue, upiRevenue, unknownRevenue, unpaid, byType, byPackage };
 }
 
-function buildEmailHtml(summary: DaySummary, dateLabel: string): string {
+function buildEmailHtml(
+  summary: DaySummary,
+  dateLabel: string,
+  pkgLabels: Record<string, string>
+): string {
   // NOTE: Gmail strips <style> and @media entirely, so every style must be
   // inline and naturally fluid (% widths, small padding, word-break).
 
@@ -118,14 +153,14 @@ function buildEmailHtml(summary: DaySummary, dateLabel: string): string {
 
   const typeRows = Object.entries(summary.byType)
     .map(([k, v]) =>
-      `<tr><td style="${dataRowStyle}">${labelType(k)}</td>` +
+      `<tr><td style="${dataRowStyle}">${escapeHtml(labelType(k))}</td>` +
       `<td style="${countCellStyle}">${v}</td></tr>`
     )
     .join("");
 
   const pkgRows = Object.entries(summary.byPackage)
     .map(([k, v]) =>
-      `<tr><td style="${dataRowStyle}">${labelPkg(k)}</td>` +
+      `<tr><td style="${dataRowStyle}">${escapeHtml(labelPkg(k, pkgLabels))}</td>` +
       `<td style="${countCellStyle}">${v}</td></tr>`
     )
     .join("");
@@ -270,6 +305,8 @@ async function sendDayEmail(dayStart: Date, dayEnd: Date): Promise<void> {
     return;
   }
 
+  const pkgLabels = await loadPackageLabels();
+
   const dateLabel = dayStart.toLocaleDateString("en-IN", {
     weekday: "long",
     day: "numeric",
@@ -304,13 +341,20 @@ async function sendDayEmail(dayStart: Date, dayEnd: Date): Promise<void> {
       dt.toLocaleTimeString("en-IN", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit" }),
       v.plate,
       labelType(v.vehicleType),
-      labelPkg(v.packageId),
+      labelPkg(v.packageId, pkgLabels),
       String(v.amount),
       v.paid ? "Yes" : "No",
       labelPaymentMethod(v.paid, v.paymentMethod),
     ]);
   });
-  const csvContent = csvRows.map((row) => row.map((cell) => `"${cell.replace(/"/g, '""')}"`).join(",")).join("\n");
+  // Prefix cells that a spreadsheet would evaluate as a formula. Plate and
+  // package text is user-authored, so an "=..." value must not execute when
+  // the owner opens the attachment.
+  const csvCell = (cell: string): string => {
+    const safe = /^[=+\-@\t\r]/.test(cell) ? `'${cell}` : cell;
+    return `"${safe.replace(/"/g, '""')}"`;
+  };
+  const csvContent = csvRows.map((row) => row.map(csvCell).join(",")).join("\n");
   const csvBase64 = Buffer.from(csvContent, "utf-8").toString("base64");
   const csvFilename = `lcc-report-${dayStart.toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" })}.csv`;
 
@@ -321,7 +365,7 @@ async function sendDayEmail(dayStart: Date, dayEnd: Date): Promise<void> {
     from: fromAddress,
     to: ownerEmails,
     subject: `Luxury Car Care — ${summary.total} washes · ${dateLabel}`,
-    html: buildEmailHtml(summary, dateLabel),
+    html: buildEmailHtml(summary, dateLabel, pkgLabels),
     attachments: [
       {
         filename: csvFilename,
