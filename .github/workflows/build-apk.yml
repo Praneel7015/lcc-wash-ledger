@@ -4,6 +4,11 @@ on:
   push:
     tags:
       - "v*"
+  workflow_dispatch:
+
+concurrency:
+  group: build-apk-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   build-and-release:
@@ -53,6 +58,11 @@ jobs:
 
       - name: Write google-services.json
         run: echo "${{ secrets.GOOGLE_SERVICES_JSON }}" | base64 --decode > android/app/google-services.json
+
+      # Catch analysis failures before spending ~5 minutes on a release build
+      # that would ship broken. Infos do not block; warnings and errors do.
+      - name: Analyze
+        run: flutter analyze --no-fatal-infos
 
       - name: Build release APKs (split per ABI)
         run: flutter build apk --release --split-per-abi

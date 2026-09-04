@@ -4,6 +4,14 @@ on:
   push:
     branches:
       - main
+  # Lets you re-run a deploy without an empty commit.
+  workflow_dispatch:
+
+# Two pushes in quick succession used to race each other onto the live
+# channel; the later one now waits and the earlier in-flight run is cancelled.
+concurrency:
+  group: deploy-web
+  cancel-in-progress: true
 
 jobs:
   build-and-deploy:
@@ -22,6 +30,11 @@ jobs:
 
       - name: Install dependencies
         run: flutter pub get
+
+      # Gate the deploy on a clean analysis. Infos (mostly style lints such as
+      # prefer_const_constructors) do not block; warnings and errors do.
+      - name: Analyze
+        run: flutter analyze --no-fatal-infos
 
       - name: Build Flutter web (release)
         run: flutter build web --release --no-tree-shake-icons
