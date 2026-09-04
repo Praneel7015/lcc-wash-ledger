@@ -19,12 +19,15 @@ class LoginScreen extends StatefulWidget {
 
 // Workers log in with a short username (e.g. "captain1").
 // The app turns it into captain1@lcc.app before calling Firebase.
-// Owners (web) still use their real email directly.
+// The rule is the input itself, not the platform: anything already
+// containing '@' is passed through so owners' real addresses work as-is.
+// This used to be gated on kIsWeb, which meant a worker typing a short
+// username on the web dashboard was sent to Firebase unqualified.
 const _workerEmailDomain = '@lcc.app';
 
 String _resolveEmail(String input) {
   final trimmed = input.trim();
-  if (kIsWeb || trimmed.contains('@')) return trimmed;
+  if (trimmed.contains('@')) return trimmed;
   return '$trimmed$_workerEmailDomain';
 }
 
