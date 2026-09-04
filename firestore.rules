@@ -22,7 +22,7 @@ service cloud.firestore {
       // Workers may update paid + paymentMethod only, with consistency rules.
       // All other field changes are owner-only.
       allow update: if isOwner() ||
-        (isSignedIn() &&
+        (isWorker() &&
           request.resource.data.diff(resource.data).affectedKeys()
               .hasOnly(['paid', 'paymentMethod']) &&
           (
@@ -34,9 +34,13 @@ service cloud.firestore {
       allow delete: if isOwner();
     }
 
-    // Customers — workers upsert on save, owner can read
+    // Customers — workers upsert on save, owner can read.
+    // Holds customer phone numbers, so writes require a real role claim
+    // rather than merely being signed in. Deletes are owner-only.
     match /customers/{id} {
-      allow read, write: if isSignedIn();
+      allow read: if isWorker() || isOwner();
+      allow create, update: if isWorker() || isOwner();
+      allow delete: if isOwner();
     }
 
     // Rates — workers read (to price washes), owner can edit
@@ -50,11 +54,13 @@ service cloud.firestore {
       allow read, write: if isOwner();
     }
 
-    // Close-day email trigger — any signed-in user can create
+    // Close-day email trigger. Only the owner dashboard sends this, and each
+    // document fans out a real email — previously any signed-in worker could
+    // create them in a loop.
     match /emailTasks/{id} {
-      allow create: if isSignedIn();
+      allow create: if isOwner();
       allow read: if isOwner();
-      allow delete: if false;
+      allow update, delete: if false;
     }
 
     // Packages — workers read (to show package picker), owner can edit
