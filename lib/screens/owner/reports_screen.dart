@@ -90,12 +90,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
           DateTimeRange(
               start: DateTime.now().subtract(const Duration(days: 30)),
               end: DateTime.now()),
-      builder: (ctx, child) => Theme(
-        data: Theme.of(ctx).copyWith(
-          colorScheme: const ColorScheme.dark(primary: WashTheme.accent),
-        ),
-        child: child!,
-      ),
+      // No Theme override — the app theme styles the picker for both modes.
     );
     if (picked != null) {
       setState(() {
@@ -246,7 +241,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     }
 
     return Scaffold(
-      backgroundColor: WashTheme.bg,
+      backgroundColor: context.wash.bg,
       appBar: AppBar(
         title: const Text('Analytics & Reports'),
         actions: [
@@ -254,7 +249,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
             PopupMenuButton<String>(
               icon: const Icon(Icons.file_download_outlined),
               tooltip: 'Export',
-              color: WashTheme.surfaceCard,
+              color: context.wash.surfaceCard,
               onSelected: (val) => exportWithLabels(val),
               itemBuilder: (ctx) => [
                 const PopupMenuItem(
@@ -288,9 +283,9 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                 margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
                 padding: const EdgeInsets.all(4),
                 decoration: BoxDecoration(
-                  color: WashTheme.surfaceCard,
+                  color: context.wash.surfaceCard,
                   borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: WashTheme.border),
+                  border: Border.all(color: context.wash.border),
                 ),
                 child: Row(
                   children: [
@@ -331,13 +326,13 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                 padding: const EdgeInsets.fromLTRB(20, 10, 20, 4),
                 child: Row(
                   children: [
-                    const Icon(Icons.date_range_rounded,
-                        size: 14, color: WashTheme.textMuted),
+                    Icon(Icons.date_range_rounded,
+                        size: 14, color: context.wash.textMuted),
                     const SizedBox(width: 6),
                     Text(
                       rangeLabel,
-                      style: const TextStyle(
-                        color: WashTheme.textSecondary,
+                      style: TextStyle(
+                        color: context.wash.textSecondary,
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
                       ),
@@ -348,8 +343,8 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
 
               Expanded(
                 child: _loading
-                    ? const Center(
-                        child: CircularProgressIndicator(color: WashTheme.accent),
+                    ? Center(
+                        child: CircularProgressIndicator(color: context.wash.accent),
                       )
                     : ListView(
                         padding: const EdgeInsets.all(16),
@@ -358,13 +353,13 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                           Container(
                             padding: const EdgeInsets.all(20),
                             decoration: BoxDecoration(
-                              color: WashTheme.surfaceCard,
+                              color: context.wash.surfaceCard,
                               borderRadius: BorderRadius.circular(24),
-                              border: Border.all(color: WashTheme.border),
+                              border: Border.all(color: context.wash.border),
                               gradient: LinearGradient(
                                 colors: [
-                                  WashTheme.surfaceCard,
-                                  WashTheme.surfaceHigh.withValues(alpha: 0.5),
+                                  context.wash.surfaceCard,
+                                  context.wash.surfaceHigh.withValues(alpha: 0.5),
                                 ],
                               ),
                             ),
@@ -379,10 +374,10 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                                         crossAxisAlignment:
                                             CrossAxisAlignment.start,
                                         children: [
-                                          const Text(
+                                          Text(
                                             'TOTAL REVENUE',
                                             style: TextStyle(
-                                              color: WashTheme.textSecondary,
+                                              color: context.wash.textSecondary,
                                               fontSize: 11,
                                               fontWeight: FontWeight.w700,
                                               letterSpacing: 1.1,
@@ -394,8 +389,8 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                                             alignment: Alignment.centerLeft,
                                             child: Text(
                                               '₹$totalRevenue',
-                                              style: const TextStyle(
-                                                color: WashTheme.accent,
+                                              style: TextStyle(
+                                                color: context.wash.accent,
                                                 fontSize: 44,
                                                 fontWeight: FontWeight.w900,
                                                 letterSpacing: -1.5,
@@ -409,10 +404,10 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                                     Container(
                                       padding: const EdgeInsets.all(14),
                                       decoration: BoxDecoration(
-                                        color: WashTheme.surfaceHigh,
+                                        color: context.wash.surfaceHigh,
                                         borderRadius: BorderRadius.circular(14),
                                         border: Border.all(
-                                            color: WashTheme.border),
+                                            color: context.wash.border),
                                       ),
                                       child: Column(
                                         crossAxisAlignment:
@@ -420,8 +415,8 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                                         children: [
                                           Text(
                                             '${visits.length} Washes',
-                                            style: const TextStyle(
-                                              color: WashTheme.textPrimary,
+                                            style: TextStyle(
+                                              color: context.wash.textPrimary,
                                               fontSize: 16,
                                               fontWeight: FontWeight.w800,
                                             ),
@@ -429,8 +424,8 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                                           const SizedBox(height: 4),
                                           Text(
                                             'Avg ₹${visits.isNotEmpty ? (totalRevenue / visits.length).round() : 0} / wash',
-                                            style: const TextStyle(
-                                              color: WashTheme.textSecondary,
+                                            style: TextStyle(
+                                              color: context.wash.textSecondary,
                                               fontSize: 12,
                                             ),
                                           ),
@@ -448,25 +443,25 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                                     _ReportTag(
                                       label: 'Cash collected',
                                       value: '₹$cashRevenue',
-                                      color: WashTheme.success,
+                                      color: context.wash.success,
                                     ),
                                     _ReportTag(
                                       label: 'UPI collected',
                                       value: '₹$upiRevenue',
-                                      color: WashTheme.accent,
+                                      color: context.wash.accent,
                                     ),
                                     if (unknownRevenue > 0)
                                       _ReportTag(
                                         label: 'Unknown method',
                                         value: '₹$unknownRevenue',
-                                        color: WashTheme.textSecondary,
+                                        color: context.wash.textSecondary,
                                       ),
                                     _ReportTag(
                                       label: 'Pending',
                                       value: '₹$pendingRevenue',
                                       color: pendingRevenue > 0
-                                          ? WashTheme.danger
-                                          : WashTheme.textSecondary,
+                                          ? context.wash.danger
+                                          : context.wash.textSecondary,
                                     ),
                                   ],
                                 ),
@@ -542,11 +537,11 @@ class _RangePill extends StatelessWidget {
           padding: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(
             color: selected
-                ? WashTheme.accent.withValues(alpha: 0.18)
+                ? context.wash.accent.withValues(alpha: 0.18)
                 : Colors.transparent,
             borderRadius: BorderRadius.circular(10),
             border: Border.all(
-              color: selected ? WashTheme.accent : Colors.transparent,
+              color: selected ? context.wash.accent : Colors.transparent,
               width: 1.2,
             ),
           ),
@@ -554,7 +549,7 @@ class _RangePill extends StatelessWidget {
             label,
             textAlign: TextAlign.center,
             style: TextStyle(
-              color: selected ? WashTheme.accent : WashTheme.textSecondary,
+              color: selected ? context.wash.accent : context.wash.textSecondary,
               fontSize: 13,
               fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
             ),
@@ -611,12 +606,12 @@ class _SectionTitle extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Icon(icon, size: 16, color: WashTheme.accent),
+        Icon(icon, size: 16, color: context.wash.accent),
         const SizedBox(width: 8),
         Text(
           title,
-          style: const TextStyle(
-            color: WashTheme.textPrimary,
+          style: TextStyle(
+            color: context.wash.textPrimary,
             fontSize: 14,
             fontWeight: FontWeight.w700,
             letterSpacing: 0.3,
@@ -651,9 +646,9 @@ class _BreakdownCard extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: WashTheme.surfaceCard,
+        color: context.wash.surfaceCard,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: WashTheme.border),
+        border: Border.all(color: context.wash.border),
       ),
       child: Column(
         children: [
@@ -664,8 +659,8 @@ class _BreakdownCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   label,
-                  style: const TextStyle(
-                    color: WashTheme.textPrimary,
+                  style: TextStyle(
+                    color: context.wash.textPrimary,
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
                   ),
@@ -678,8 +673,8 @@ class _BreakdownCard extends StatelessWidget {
                 children: [
                   Text(
                     '$count ($percentage%)',
-                    style: const TextStyle(
-                      color: WashTheme.textSecondary,
+                    style: TextStyle(
+                      color: context.wash.textSecondary,
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
                     ),
@@ -687,8 +682,8 @@ class _BreakdownCard extends StatelessWidget {
                   if (revenue != null)
                     Text(
                       '₹$revenue',
-                      style: const TextStyle(
-                        color: WashTheme.accent,
+                      style: TextStyle(
+                        color: context.wash.accent,
                         fontSize: 14,
                         fontWeight: FontWeight.w800,
                       ),
@@ -702,9 +697,9 @@ class _BreakdownCard extends StatelessWidget {
             borderRadius: BorderRadius.circular(6),
             child: LinearProgressIndicator(
               value: fraction,
-              backgroundColor: WashTheme.surfaceHigh,
+              backgroundColor: context.wash.surfaceHigh,
               valueColor:
-                  const AlwaysStoppedAnimation<Color>(WashTheme.accent),
+                  AlwaysStoppedAnimation<Color>(context.wash.accent),
               minHeight: 6,
             ),
           ),

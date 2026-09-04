@@ -5,10 +5,10 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/theme.dart';
+import '../../widgets/theme_toggle_button.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -35,10 +35,19 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _obscurePassword = true;
   String? _error;
 
+  // Built once and disposed with the State. Previously this was allocated
+  // fresh inside build() on every frame and never disposed.
+  late final TapGestureRecognizer _creditTapRecognizer = TapGestureRecognizer()
+    ..onTap = () => launchUrl(
+          Uri.parse('https://praneel.sindhole.com/contact'),
+          mode: LaunchMode.externalApplication,
+        );
+
   @override
   void dispose() {
     _emailCtrl.dispose();
     _passCtrl.dispose();
+    _creditTapRecognizer.dispose();
     super.dispose();
   }
 
@@ -60,13 +69,9 @@ class _LoginScreenState extends State<LoginScreen> {
         email: _resolveEmail(_emailCtrl.text),
         password: _passCtrl.text,
       );
-      if (mounted) {
-        if (kIsWeb) {
-          context.go('/owner');
-        } else {
-          context.go('/worker/capture-plate');
-        }
-      }
+      // No navigation here: the router's redirect sends the user to the owner
+      // dashboard or the worker flow based on their role claim. Hard-coding
+      // the destination by platform is what let workers into the dashboard.
     } on FirebaseAuthException catch (e) {
       String msg = 'Sign in failed. Please check credentials.';
       if (e.code == 'user-not-found' ||
@@ -91,7 +96,7 @@ class _LoginScreenState extends State<LoginScreen> {
     final viewWidth = MediaQuery.of(context).size.width;
 
     return Scaffold(
-      backgroundColor: WashTheme.bg,
+      backgroundColor: context.wash.bg,
       body: SizedBox.expand(
         child: Stack(
           children: [
@@ -106,7 +111,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   shape: BoxShape.circle,
                   gradient: RadialGradient(
                     colors: [
-                      WashTheme.accent.withValues(alpha: 0.10),
+                      context.wash.accent.withValues(alpha: 0.10),
                       Colors.transparent,
                     ],
                   ),
@@ -126,12 +131,17 @@ class _LoginScreenState extends State<LoginScreen> {
                     child: Container(
                       padding: const EdgeInsets.all(32),
                       decoration: BoxDecoration(
-                        color: WashTheme.surfaceCard,
+                        color: context.wash.surfaceCard,
                         borderRadius: BorderRadius.circular(24),
-                        border: Border.all(color: WashTheme.border),
+                        border: Border.all(color: context.wash.border),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.45),
+                            color: context.wash.shadow.withValues(
+                              alpha: Theme.of(context).brightness ==
+                                      Brightness.dark
+                                  ? 0.45
+                                  : 0.10,
+                            ),
                             blurRadius: 40,
                             offset: const Offset(0, 16),
                           ),
@@ -151,11 +161,11 @@ class _LoginScreenState extends State<LoginScreen> {
                                   width: 44,
                                   height: 4,
                                   decoration: BoxDecoration(
-                                    color: WashTheme.accent,
+                                    color: context.wash.accent,
                                     borderRadius: BorderRadius.circular(2),
                                     boxShadow: [
                                       BoxShadow(
-                                        color: WashTheme.accent.withValues(alpha: 0.45),
+                                        color: context.wash.accent.withValues(alpha: 0.45),
                                         blurRadius: 12,
                                         offset: const Offset(0, 2),
                                       ),
@@ -168,10 +178,10 @@ class _LoginScreenState extends State<LoginScreen> {
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  const Text(
+                                  Text(
                                     'LUXURY ',
                                     style: TextStyle(
-                                      color: WashTheme.textPrimary,
+                                      color: context.wash.textPrimary,
                                       fontSize: 20,
                                       fontWeight: FontWeight.w800,
                                       letterSpacing: 2,
@@ -180,7 +190,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                   Text(
                                     'CAR CARE',
                                     style: TextStyle(
-                                      color: WashTheme.accent,
+                                      color: context.wash.accent,
                                       fontSize: 20,
                                       fontWeight: FontWeight.w800,
                                       letterSpacing: 2,
@@ -191,8 +201,8 @@ class _LoginScreenState extends State<LoginScreen> {
                               const SizedBox(height: 4),
                               Text(
                                 kIsWeb ? 'Owner Portal' : 'Field Operations',
-                                style: const TextStyle(
-                                  color: WashTheme.textSecondary,
+                                style: TextStyle(
+                                  color: context.wash.textSecondary,
                                   fontSize: 11,
                                   fontWeight: FontWeight.w500,
                                   letterSpacing: 1,
@@ -230,8 +240,8 @@ class _LoginScreenState extends State<LoginScreen> {
                             textInputAction: TextInputAction.next,
                             autocorrect: false,
                             enableSuggestions: false,
-                            style: const TextStyle(
-                                color: WashTheme.textPrimary),
+                            style: TextStyle(
+                                color: context.wash.textPrimary),
                             decoration: InputDecoration(
                               labelText:
                                   kIsWeb ? 'Email Address' : 'Username',
@@ -242,7 +252,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                   kIsWeb
                                       ? Icons.mail_outline_rounded
                                       : Icons.person_outline_rounded,
-                                  color: WashTheme.textSecondary,
+                                  color: context.wash.textSecondary,
                                   size: 20),
                             ),
                           ),
@@ -254,21 +264,21 @@ class _LoginScreenState extends State<LoginScreen> {
                             obscureText: _obscurePassword,
                             textInputAction: TextInputAction.done,
                             onSubmitted: (_) => _login(),
-                            style: const TextStyle(
-                                color: WashTheme.textPrimary),
+                            style: TextStyle(
+                                color: context.wash.textPrimary),
                             decoration: InputDecoration(
                               labelText: 'Password',
                               hintText: '••••••••',
-                              prefixIcon: const Icon(
+                              prefixIcon: Icon(
                                   Icons.lock_outline_rounded,
-                                  color: WashTheme.textSecondary,
+                                  color: context.wash.textSecondary,
                                   size: 20),
                               suffixIcon: IconButton(
                                 icon: Icon(
                                   _obscurePassword
                                       ? Icons.visibility_outlined
                                       : Icons.visibility_off_outlined,
-                                  color: WashTheme.textSecondary,
+                                  color: context.wash.textSecondary,
                                   size: 20,
                                 ),
                                 onPressed: () => setState(() =>
@@ -285,22 +295,22 @@ class _LoginScreenState extends State<LoginScreen> {
                                   horizontal: 14, vertical: 12),
                               decoration: BoxDecoration(
                                 color:
-                                    WashTheme.danger.withValues(alpha: 0.12),
+                                    context.wash.danger.withValues(alpha: 0.12),
                                 borderRadius: BorderRadius.circular(10),
                                 border: Border.all(
-                                    color: WashTheme.danger
+                                    color: context.wash.danger
                                         .withValues(alpha: 0.4)),
                               ),
                               child: Row(
                                 children: [
-                                  const Icon(Icons.error_outline_rounded,
-                                      color: WashTheme.danger, size: 18),
+                                  Icon(Icons.error_outline_rounded,
+                                      color: context.wash.danger, size: 18),
                                   const SizedBox(width: 10),
                                   Expanded(
                                     child: Text(
                                       _error!,
-                                      style: const TextStyle(
-                                          color: WashTheme.danger,
+                                      style: TextStyle(
+                                          color: context.wash.danger,
                                           fontSize: 13,
                                           fontWeight: FontWeight.w500),
                                     ),
@@ -316,12 +326,12 @@ class _LoginScreenState extends State<LoginScreen> {
                           ElevatedButton(
                             onPressed: _loading ? null : _login,
                             child: _loading
-                                ? const SizedBox(
+                                ? SizedBox(
                                     width: 22,
                                     height: 22,
                                     child: CircularProgressIndicator(
                                       strokeWidth: 2.5,
-                                      color: WashTheme.bg,
+                                      color: context.wash.bg,
                                     ),
                                   )
                                 : Row(
@@ -346,7 +356,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               'Protected by Firebase Security',
                               style: TextStyle(
                                 color:
-                                    WashTheme.textMuted.withValues(alpha: 0.8),
+                                    context.wash.textMuted.withValues(alpha: 0.8),
                                 fontSize: 11,
                               ),
                             ),
@@ -357,7 +367,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               child: RichText(
                                 text: TextSpan(
                                   style: TextStyle(
-                                    color: WashTheme.textMuted
+                                    color: context.wash.textMuted
                                         .withValues(alpha: 0.6),
                                     fontSize: 11,
                                   ),
@@ -366,20 +376,14 @@ class _LoginScreenState extends State<LoginScreen> {
                                     TextSpan(
                                       text: 'Praneel S',
                                       style: TextStyle(
-                                        color: WashTheme.accent
+                                        color: context.wash.accent
                                             .withValues(alpha: 0.85),
                                         fontWeight: FontWeight.w600,
                                         decoration: TextDecoration.underline,
-                                        decorationColor: WashTheme.accent
+                                        decorationColor: context.wash.accent
                                             .withValues(alpha: 0.5),
                                       ),
-                                      recognizer: TapGestureRecognizer()
-                                        ..onTap = () => launchUrl(
-                                              Uri.parse(
-                                                  'https://praneel.sindhole.com/contact'),
-                                              mode: LaunchMode
-                                                  .externalApplication,
-                                            ),
+                                      recognizer: _creditTapRecognizer,
                                     ),
                                   ],
                                 ),
@@ -392,6 +396,14 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
               ),
+            ),
+
+            // Theme toggle — last child so it paints above the scroll view and
+            // wins hit-testing. Available before sign-in.
+            const Positioned(
+              top: 8,
+              right: 8,
+              child: SafeArea(child: ThemeToggleButton(size: 20)),
             ),
           ],
         ),

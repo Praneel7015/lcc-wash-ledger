@@ -1,6 +1,7 @@
 // Screen 2: show OCR result in a giant India-plate-shaped field.
 // Worker corrects if wrong. Shows returning-customer banner.
 
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -33,6 +34,16 @@ class _ConfirmPlateScreenState extends ConsumerState<ConfirmPlateScreen> {
   bool _loadingCustomer = false;
   bool _alreadyToday = false;
 
+  // The lookup used to fire on every keystroke — two Firestore reads per
+  // character typed, with no ordering guarantee between responses. Debounce
+  // the calls and stamp each one so a slow earlier reply can't overwrite a
+  // newer result.
+  Timer? _lookupDebounce;
+  int _lookupSeq = 0;
+  String? _lastLookedUpPlate;
+
+  static const _lookupDelay = Duration(milliseconds: 450);
+
   @override
   void initState() {
     super.initState();
@@ -45,27 +56,49 @@ class _ConfirmPlateScreenState extends ConsumerState<ConfirmPlateScreen> {
 
   @override
   void dispose() {
+    _lookupDebounce?.cancel();
     _ctrl.dispose();
     super.dispose();
   }
 
+  void _onPlateChanged(String raw) {
+    _lookupDebounce?.cancel();
+    _lookupDebounce = Timer(_lookupDelay, () => _lookupCustomer(raw));
+  }
+
   Future<void> _lookupCustomer(String raw) async {
     final plate = normalisePlate(raw);
-    if (plate.isEmpty) return;
+    if (plate.isEmpty) {
+      if (mounted && (_customer != null || _alreadyToday)) {
+        setState(() {
+          _customer = null;
+          _alreadyToday = false;
+        });
+      }
+      return;
+    }
+    // Nothing changed since the last completed lookup.
+    if (plate == _lastLookedUpPlate) return;
+
+    final seq = ++_lookupSeq;
     setState(() => _loadingCustomer = true);
     try {
       final svc = ref.read(firestoreServiceProvider);
-      final customer = await svc.getCustomer(plate);
-      final alreadyToday = await svc.wasLoggedToday(plate);
-      if (mounted) {
-        setState(() {
-          _customer = customer;
-          _alreadyToday = alreadyToday;
-          _loadingCustomer = false;
-        });
-      }
+      final results = await Future.wait([
+        svc.getCustomer(plate),
+        svc.wasLoggedToday(plate),
+      ]);
+      if (!mounted || seq != _lookupSeq) return; // a newer lookup won
+      setState(() {
+        _customer = results[0] as Customer?;
+        _alreadyToday = results[1] as bool;
+        _loadingCustomer = false;
+        _lastLookedUpPlate = plate;
+      });
     } catch (_) {
-      if (mounted) setState(() => _loadingCustomer = false);
+      if (mounted && seq == _lookupSeq) {
+        setState(() => _loadingCustomer = false);
+      }
     }
   }
 
@@ -133,7 +166,7 @@ class _ConfirmPlateScreenState extends ConsumerState<ConfirmPlateScreen> {
                       letterSpacing: 2,
                     ),
                   ),
-                  onChanged: (v) => _lookupCustomer(v),
+                  onChanged: _onPlateChanged,
                 ),
               ),
               const SizedBox(height: 8),
@@ -147,8 +180,8 @@ class _ConfirmPlateScreenState extends ConsumerState<ConfirmPlateScreen> {
 
               // Returning customer banner
               if (_loadingCustomer)
-                const Center(
-                    child: CircularProgressIndicator(color: WashTheme.accent))
+                Center(
+                    child: CircularProgressIndicator(color: context.wash.accent))
               else if (_customer != null) ...[
                 _CustomerBanner(customer: _customer!),
               ],
@@ -159,21 +192,21 @@ class _ConfirmPlateScreenState extends ConsumerState<ConfirmPlateScreen> {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: WashTheme.warning.withValues(alpha: 0.1),
+                    color: context.wash.warning.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(
-                        color: WashTheme.warning.withValues(alpha: 0.5)),
+                        color: context.wash.warning.withValues(alpha: 0.5)),
                   ),
-                  child: const Row(
+                  child: Row(
                     children: [
                       Icon(Icons.warning_amber_rounded,
-                          color: WashTheme.warning, size: 20),
-                      SizedBox(width: 8),
+                          color: context.wash.warning, size: 20),
+                      const SizedBox(width: 8),
                       Expanded(
                         child: Text(
                           'Already logged today — double tap?',
                           style: TextStyle(
-                              color: WashTheme.warning, fontSize: 14),
+                              color: context.wash.warning, fontSize: 14),
                         ),
                       ),
                     ],
@@ -203,9 +236,9 @@ class _CustomerBanner extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: WashTheme.success.withValues(alpha: 0.08),
+        color: context.wash.success.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: WashTheme.success.withValues(alpha: 0.4)),
+        border: Border.all(color: context.wash.success.withValues(alpha: 0.4)),
       ),
       child: Row(
         children: [
@@ -213,10 +246,10 @@ class _CustomerBanner extends StatelessWidget {
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: WashTheme.success.withValues(alpha: 0.15),
+              color: context.wash.success.withValues(alpha: 0.15),
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.repeat, color: WashTheme.success, size: 20),
+            child: Icon(Icons.repeat, color: context.wash.success, size: 20),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -225,8 +258,8 @@ class _CustomerBanner extends StatelessWidget {
               children: [
                 Text(
                   'Returning customer · ${customer.visitCount} visits',
-                  style: const TextStyle(
-                    color: WashTheme.success,
+                  style: TextStyle(
+                    color: context.wash.success,
                     fontWeight: FontWeight.w700,
                     fontSize: 14,
                   ),
@@ -234,8 +267,8 @@ class _CustomerBanner extends StatelessWidget {
                 if (customer.phone != null)
                   Text(
                     customer.phone!,
-                    style: const TextStyle(
-                        color: WashTheme.textSecondary, fontSize: 13),
+                    style: TextStyle(
+                        color: context.wash.textSecondary, fontSize: 13),
                   ),
               ],
             ),

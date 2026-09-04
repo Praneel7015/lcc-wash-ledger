@@ -44,20 +44,24 @@ class _CaptureFrontScreenState extends State<CaptureFrontScreen> {
 
   void _retake() => setState(() => _previewBytes = null);
 
-  void _proceed() {
+  Future<void> _proceed() async {
     if (_previewBytes == null || _navigating) return;
     setState(() => _navigating = true);
-    context.push('/worker/type-package', extra: {
+    // `push` completes when the pushed route pops. Without awaiting and
+    // clearing the flag, coming back here left Next and Retake disabled
+    // forever and the worker had to restart the wash.
+    await context.push('/worker/type-package', extra: {
       'plate': widget.plate,
       'plateImageBytes': widget.plateImageBytes,
       'frontImageBytes': _previewBytes!.toList(),
     });
+    if (mounted) setState(() => _navigating = false);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: WashTheme.bg,
+      backgroundColor: context.wash.bg,
       appBar: WorkerAppBar(
         title: 'Vehicle photo',
         subtitle: widget.plate,
@@ -98,12 +102,12 @@ class _CaptureView extends StatelessWidget {
               width: 280,
               height: 200,
               decoration: BoxDecoration(
-                color: WashTheme.surfaceCard,
+                color: context.wash.surfaceCard,
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: WashTheme.border, width: 2),
+                border: Border.all(color: context.wash.border, width: 2),
               ),
-              child: const Icon(Icons.directions_car_filled_rounded,
-                  size: 80, color: WashTheme.textMuted),
+              child: Icon(Icons.directions_car_filled_rounded,
+                  size: 80, color: context.wash.textMuted),
             ),
           ),
         ),
@@ -114,14 +118,14 @@ class _CaptureView extends StatelessWidget {
           style: Theme.of(context)
               .textTheme
               .headlineMedium
-              ?.copyWith(color: WashTheme.textPrimary),
+              ?.copyWith(color: context.wash.textPrimary),
         ),
         const SizedBox(height: 8),
-        const Text(
+        Text(
           'Used for vehicle type detection\nand damage dispute reference',
           textAlign: TextAlign.center,
           style: TextStyle(
-              color: WashTheme.textSecondary, fontSize: 14, height: 1.5),
+              color: context.wash.textSecondary, fontSize: 14, height: 1.5),
         ),
         const Spacer(),
         ElevatedButton.icon(
@@ -164,10 +168,10 @@ class _PreviewView extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const Text(
+        Text(
           'CHECK YOUR PHOTO',
           style: TextStyle(
-            color: WashTheme.textSecondary,
+            color: context.wash.textSecondary,
             fontSize: 12,
             fontWeight: FontWeight.w700,
             letterSpacing: 1.2,
@@ -221,7 +225,7 @@ class _PreviewView extends StatelessWidget {
                     color: Colors.black.withValues(alpha: 0.5),
                     borderRadius: BorderRadius.circular(6),
                     border: Border.all(
-                        color: WashTheme.accent.withValues(alpha: 0.7),
+                        color: context.wash.accent.withValues(alpha: 0.7),
                         width: 1.5),
                   ),
                   child: const Text(
@@ -241,12 +245,12 @@ class _PreviewView extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.info_outline_rounded,
-                size: 14, color: WashTheme.textMuted),
+            Icon(Icons.info_outline_rounded,
+                size: 14, color: context.wash.textMuted),
             const SizedBox(width: 6),
-            const Text(
+            Text(
               'Tap × to retake if the vehicle is not fully visible',
-              style: TextStyle(color: WashTheme.textMuted, fontSize: 12),
+              style: TextStyle(color: context.wash.textMuted, fontSize: 12),
             ),
           ],
         ),
@@ -256,11 +260,11 @@ class _PreviewView extends StatelessWidget {
         ElevatedButton(
           onPressed: navigating ? null : onProceed,
           child: navigating
-              ? const SizedBox(
+              ? SizedBox(
                   width: 22,
                   height: 22,
                   child: CircularProgressIndicator(
-                      strokeWidth: 2.5, color: WashTheme.bg),
+                      strokeWidth: 2.5, color: context.wash.bg),
                 )
               : const Row(
                   mainAxisAlignment: MainAxisAlignment.center,

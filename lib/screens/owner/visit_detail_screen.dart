@@ -8,6 +8,7 @@ import 'package:intl/intl.dart';
 import '../../core/constants.dart';
 import '../../core/theme.dart';
 import '../../models/visit.dart';
+import '../../providers/package_labels_provider.dart';
 import '../../services/providers.dart';
 import '../../widgets/payment_method_dialog.dart';
 
@@ -19,7 +20,7 @@ class VisitDetailScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final svc = ref.watch(firestoreServiceProvider);
     return Scaffold(
-      backgroundColor: WashTheme.bg,
+      backgroundColor: context.wash.bg,
       appBar: AppBar(
         title: const Text('Wash Record Details'),
       ),
@@ -31,17 +32,17 @@ class VisitDetailScreen extends ConsumerWidget {
         }),
         builder: (ctx, snap) {
           if (snap.connectionState == ConnectionState.waiting) {
-            return const Center(
-              child: CircularProgressIndicator(color: WashTheme.accent),
+            return Center(
+              child: CircularProgressIndicator(color: context.wash.accent),
             );
           }
           final visit = snap.data?.$1;
           final operatorName = snap.data?.$2;
           if (visit == null) {
-            return const Center(
+            return Center(
               child: Text(
                 'Record not found or has been voided.',
-                style: TextStyle(color: WashTheme.textSecondary),
+                style: TextStyle(color: context.wash.textSecondary),
               ),
             );
           }
@@ -105,7 +106,7 @@ class _VisitDetailState extends ConsumerState<_VisitDetail> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('Could not update payment: $e'),
-              backgroundColor: WashTheme.danger,
+              backgroundColor: context.wash.danger,
             ),
           );
         }
@@ -132,7 +133,7 @@ class _VisitDetailState extends ConsumerState<_VisitDetail> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Could not update payment: $e'),
-            backgroundColor: WashTheme.danger,
+            backgroundColor: context.wash.danger,
           ),
         );
       }
@@ -163,9 +164,9 @@ class _VisitDetailState extends ConsumerState<_VisitDetail> {
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: WashTheme.surfaceCard,
+                color: context.wash.surfaceCard,
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: WashTheme.border),
+                border: Border.all(color: context.wash.border),
               ),
               child: Row(
                 children: [
@@ -218,30 +219,30 @@ class _VisitDetailState extends ConsumerState<_VisitDetail> {
                           horizontal: 12, vertical: 6),
                       decoration: BoxDecoration(
                         color: visit.paid
-                            ? WashTheme.success.withValues(alpha: 0.15)
-                            : WashTheme.danger.withValues(alpha: 0.15),
+                            ? context.wash.success.withValues(alpha: 0.15)
+                            : context.wash.danger.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(
                           color: visit.paid
-                              ? WashTheme.success.withValues(alpha: 0.3)
-                              : WashTheme.danger.withValues(alpha: 0.3),
+                              ? context.wash.success.withValues(alpha: 0.3)
+                              : context.wash.danger.withValues(alpha: 0.3),
                         ),
                       ),
                       child: _updatingPaid
-                          ? const SizedBox(
+                          ? SizedBox(
                               width: 14,
                               height: 14,
                               child: CircularProgressIndicator(
                                 strokeWidth: 2,
-                                color: WashTheme.accent,
+                                color: context.wash.accent,
                               ),
                             )
                           : Text(
                               _paidBadgeLabel(),
                               style: TextStyle(
                                 color: visit.paid
-                                    ? WashTheme.success
-                                    : WashTheme.danger,
+                                    ? context.wash.success
+                                    : context.wash.danger,
                                 fontWeight: FontWeight.w800,
                                 fontSize: 12,
                                 letterSpacing: 0.5,
@@ -252,12 +253,12 @@ class _VisitDetailState extends ConsumerState<_VisitDetail> {
                 ],
               ),
             ),
-            const Padding(
-              padding: EdgeInsets.only(top: 8),
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
               child: Text(
                 'Tap payment status to toggle',
                 textAlign: TextAlign.center,
-                style: TextStyle(color: WashTheme.textMuted, fontSize: 11),
+                style: TextStyle(color: context.wash.textMuted, fontSize: 11),
               ),
             ),
             const SizedBox(height: 20),
@@ -310,23 +311,23 @@ class _VisitDetailState extends ConsumerState<_VisitDetail> {
             Container(
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                color: WashTheme.surfaceCard,
+                color: context.wash.surfaceCard,
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: WashTheme.border),
+                border: Border.all(color: context.wash.border),
               ),
               child: Column(
                 children: [
                   _DetailRow('Date & Time', Text(fmt.format(visit.createdAt),
-                      style: const TextStyle(
-                          color: WashTheme.textPrimary,
+                      style: TextStyle(
+                          color: context.wash.textPrimary,
                           fontWeight: FontWeight.w600))),
                   const Divider(height: 24),
                   _DetailRow(
                     'Vehicle Classification',
                     Text(
                       '${VehicleType.emoji(visit.vehicleType)}  ${VehicleType.label(visit.vehicleType)}',
-                      style: const TextStyle(
-                          color: WashTheme.textPrimary,
+                      style: TextStyle(
+                          color: context.wash.textPrimary,
                           fontWeight: FontWeight.w600),
                     ),
                   ),
@@ -334,9 +335,10 @@ class _VisitDetailState extends ConsumerState<_VisitDetail> {
                   _DetailRow(
                     'Service Package',
                     Text(
-                      WashPackage.label(visit.packageId),
-                      style: const TextStyle(
-                          color: WashTheme.textPrimary,
+                      resolvePackageLabel(
+                          ref.watch(packageLabelsProvider), visit.packageId),
+                      style: TextStyle(
+                          color: context.wash.textPrimary,
                           fontWeight: FontWeight.w600),
                     ),
                   ),
@@ -345,8 +347,8 @@ class _VisitDetailState extends ConsumerState<_VisitDetail> {
                     'Service Amount',
                     Text(
                       '₹${visit.amount}',
-                      style: const TextStyle(
-                        color: WashTheme.accent,
+                      style: TextStyle(
+                        color: context.wash.accent,
                         fontSize: 22,
                         fontWeight: FontWeight.w900,
                       ),
@@ -358,8 +360,8 @@ class _VisitDetailState extends ConsumerState<_VisitDetail> {
                       'Paid by',
                       Text(
                         PaymentMethod.label(visit.paymentMethod),
-                        style: const TextStyle(
-                          color: WashTheme.textPrimary,
+                        style: TextStyle(
+                          color: context.wash.textPrimary,
                           fontSize: 16,
                           fontWeight: FontWeight.w700,
                         ),
@@ -372,8 +374,8 @@ class _VisitDetailState extends ConsumerState<_VisitDetail> {
                       'Customer Phone',
                       Text(
                         visit.phone!,
-                        style: const TextStyle(
-                          color: WashTheme.textPrimary,
+                        style: TextStyle(
+                          color: context.wash.textPrimary,
                           fontSize: 16,
                           fontWeight: FontWeight.w700,
                         ),
@@ -388,8 +390,8 @@ class _VisitDetailState extends ConsumerState<_VisitDetail> {
                         widget.operatorName ?? _visit.workerId!,
                         style: TextStyle(
                           color: widget.operatorName != null
-                              ? WashTheme.textPrimary
-                              : WashTheme.textMuted,
+                              ? context.wash.textPrimary
+                              : context.wash.textMuted,
                           fontSize: widget.operatorName != null ? 14 : 12,
                           fontFamily: widget.operatorName != null
                               ? null
@@ -409,15 +411,15 @@ class _VisitDetailState extends ConsumerState<_VisitDetail> {
             // Void action button
             OutlinedButton.icon(
               onPressed: () => _confirmVoid(context),
-              icon: const Icon(Icons.delete_outline_rounded,
-                  color: WashTheme.danger, size: 18),
-              label: const Text(
+              icon: Icon(Icons.delete_outline_rounded,
+                  color: context.wash.danger, size: 18),
+              label: Text(
                 'Void This Record',
                 style: TextStyle(
-                    color: WashTheme.danger, fontWeight: FontWeight.w700),
+                    color: context.wash.danger, fontWeight: FontWeight.w700),
               ),
               style: OutlinedButton.styleFrom(
-                side: const BorderSide(color: WashTheme.danger),
+                side: BorderSide(color: context.wash.danger),
                 minimumSize: const Size(double.infinity, 50),
               ),
             ),
@@ -432,23 +434,23 @@ class _VisitDetailState extends ConsumerState<_VisitDetail> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        backgroundColor: WashTheme.surfaceCard,
+        backgroundColor: context.wash.surfaceCard,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Text('Void this visit?'),
-        content: const Text(
+        content: Text(
           'This record will be excluded from revenue calculations and daily reports. High-resolution photos will be retained for dispute verification.',
-          style: TextStyle(color: WashTheme.textSecondary, height: 1.4),
+          style: TextStyle(color: context.wash.textSecondary, height: 1.4),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel',
-                style: TextStyle(color: WashTheme.textSecondary)),
+            child: Text('Cancel',
+                style: TextStyle(color: context.wash.textSecondary)),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
             style: ElevatedButton.styleFrom(
-              backgroundColor: WashTheme.danger,
+              backgroundColor: context.wash.danger,
               foregroundColor: Colors.white,
             ),
             child: const Text('Confirm Void'),
@@ -473,8 +475,8 @@ class _DetailRow extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(label,
-              style: const TextStyle(
-                  color: WashTheme.textSecondary, fontSize: 14)),
+              style: TextStyle(
+                  color: context.wash.textSecondary, fontSize: 14)),
           value,
         ],
       );
@@ -498,7 +500,7 @@ class _PhotoCard extends StatelessWidget {
       context: context,
       barrierColor: Colors.black.withValues(alpha: 0.92),
       builder: (ctx) => Dialog(
-        backgroundColor: WashTheme.surfaceCard,
+        backgroundColor: context.wash.surfaceCard,
         insetPadding: const EdgeInsets.all(16),
         child: SizedBox(
           width: size.width > 600 ? 560 : size.width - 32,
@@ -513,8 +515,8 @@ class _PhotoCard extends StatelessWidget {
                     Expanded(
                       child: Text(
                         label,
-                        style: const TextStyle(
-                          color: WashTheme.textPrimary,
+                        style: TextStyle(
+                          color: context.wash.textPrimary,
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
                         ),
@@ -541,15 +543,15 @@ class _PhotoCard extends StatelessWidget {
                         loadingBuilder: (_, child, progress) =>
                             progress == null
                                 ? child
-                                : const Center(
+                                : Center(
                                     child: CircularProgressIndicator(
                                       strokeWidth: 2,
-                                      color: WashTheme.accent,
+                                      color: context.wash.accent,
                                     ),
                                   ),
-                        errorBuilder: (_, __, ___) => const Center(
+                        errorBuilder: (_, __, ___) => Center(
                           child: Icon(Icons.broken_image_rounded,
-                              color: WashTheme.textMuted, size: 48),
+                              color: context.wash.textMuted, size: 48),
                         ),
                       ),
                     ),
@@ -567,9 +569,9 @@ class _PhotoCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: WashTheme.surfaceCard,
+        color: context.wash.surfaceCard,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: WashTheme.border),
+        border: Border.all(color: context.wash.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -578,12 +580,12 @@ class _PhotoCard extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             child: Row(
               children: [
-                Icon(icon, size: 16, color: WashTheme.accent),
+                Icon(icon, size: 16, color: context.wash.accent),
                 const SizedBox(width: 8),
                 Text(
                   label,
-                  style: const TextStyle(
-                    color: WashTheme.textSecondary,
+                  style: TextStyle(
+                    color: context.wash.textSecondary,
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
                   ),
@@ -610,20 +612,20 @@ class _PhotoCard extends StatelessWidget {
                                   ? child
                                   : Container(
                                       height: 220,
-                                      color: WashTheme.surfaceHigh,
-                                      child: const Center(
+                                      color: context.wash.surfaceHigh,
+                                      child: Center(
                                         child: CircularProgressIndicator(
                                           strokeWidth: 2,
-                                          color: WashTheme.accent,
+                                          color: context.wash.accent,
                                         ),
                                       ),
                                     ),
                           errorBuilder: (_, __, ___) => Container(
                             height: 220,
-                            color: WashTheme.surfaceHigh,
-                            child: const Center(
+                            color: context.wash.surfaceHigh,
+                            child: Center(
                               child: Icon(Icons.broken_image_rounded,
-                                  color: WashTheme.textMuted, size: 36),
+                                  color: context.wash.textMuted, size: 36),
                             ),
                           ),
                         ),
@@ -660,10 +662,10 @@ class _PhotoCard extends StatelessWidget {
                   )
                 : Container(
                     height: 220,
-                    color: WashTheme.surfaceHigh,
-                    child: const Center(
+                    color: context.wash.surfaceHigh,
+                    child: Center(
                       child: Icon(Icons.photo_outlined,
-                          color: WashTheme.textMuted, size: 36),
+                          color: context.wash.textMuted, size: 36),
                     ),
                   ),
           ),

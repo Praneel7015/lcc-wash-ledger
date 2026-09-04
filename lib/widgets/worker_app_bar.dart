@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:go_router/go_router.dart';
 
 import '../core/theme.dart';
+import 'theme_toggle_button.dart';
 
 class WorkerAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String title;
@@ -31,15 +32,16 @@ class WorkerAppBar extends StatelessWidget implements PreferredSizeWidget {
           if (subtitle != null)
             Text(
               subtitle!,
-              style: const TextStyle(
+              style: TextStyle(
                   fontSize: 13,
-                  color: WashTheme.textSecondary,
+                  color: context.wash.textSecondary,
                   fontWeight: FontWeight.w400),
             ),
         ],
       ),
       actions: [
         if (extraActions != null) ...extraActions!,
+        const ThemeToggleButton(),
         IconButton(
           icon: const Icon(Icons.logout, size: 22),
           tooltip: 'Sign out',

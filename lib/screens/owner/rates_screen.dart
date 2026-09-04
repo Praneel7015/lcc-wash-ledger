@@ -37,14 +37,14 @@ class _RatesScreenState extends ConsumerState<RatesScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: WashTheme.bg,
+      backgroundColor: context.wash.bg,
       appBar: AppBar(
         title: const Text('Wash Rates & Packages'),
         bottom: TabBar(
           controller: _tab,
-          indicatorColor: WashTheme.accent,
-          labelColor: WashTheme.accent,
-          unselectedLabelColor: WashTheme.textSecondary,
+          indicatorColor: context.wash.accent,
+          labelColor: context.wash.accent,
+          unselectedLabelColor: context.wash.textSecondary,
           labelStyle: const TextStyle(
               fontWeight: FontWeight.w700, fontSize: 14, fontFamily: 'Inter'),
           tabs: const [
@@ -134,16 +134,16 @@ class _RatesTabState extends ConsumerState<_RatesTab> {
       }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+          SnackBar(
             content: Row(
               children: [
                 Icon(Icons.check_circle_rounded,
-                    color: WashTheme.success, size: 20),
-                SizedBox(width: 10),
-                Text('Wash rates updated successfully!'),
+                    color: context.wash.success, size: 20),
+                const SizedBox(width: 10),
+                const Text('Wash rates updated successfully!'),
               ],
             ),
-            backgroundColor: WashTheme.surfaceHigh,
+            backgroundColor: context.wash.surfaceHigh,
           ),
         );
       }
@@ -155,8 +155,8 @@ class _RatesTabState extends ConsumerState<_RatesTab> {
   @override
   Widget build(BuildContext context) {
     if (_loading) {
-      return const Center(
-          child: CircularProgressIndicator(color: WashTheme.accent));
+      return Center(
+          child: CircularProgressIndicator(color: context.wash.accent));
     }
 
     return Center(
@@ -169,21 +169,21 @@ class _RatesTabState extends ConsumerState<_RatesTab> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: WashTheme.accent.withValues(alpha: 0.08),
+                color: context.wash.accent.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(14),
                 border:
-                    Border.all(color: WashTheme.accent.withValues(alpha: 0.25)),
+                    Border.all(color: context.wash.accent.withValues(alpha: 0.25)),
               ),
-              child: const Row(
+              child: Row(
                 children: [
                   Icon(Icons.info_outline_rounded,
-                      color: WashTheme.accent, size: 20),
-                  SizedBox(width: 12),
+                      color: context.wash.accent, size: 20),
+                  const SizedBox(width: 12),
                   Expanded(
                     child: Text(
                       'Rates set here automatically determine pricing on worker mobile intake devices.',
                       style: TextStyle(
-                        color: WashTheme.textPrimary,
+                        color: context.wash.textPrimary,
                         fontSize: 13,
                         height: 1.4,
                       ),
@@ -205,9 +205,9 @@ class _RatesTabState extends ConsumerState<_RatesTab> {
                 margin: const EdgeInsets.only(bottom: 20),
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: WashTheme.surfaceCard,
+                  color: context.wash.surfaceCard,
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: WashTheme.border),
+                  border: Border.all(color: context.wash.border),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -219,8 +219,8 @@ class _RatesTabState extends ConsumerState<_RatesTab> {
                         const SizedBox(width: 10),
                         Text(
                           VehicleType.label(vt),
-                          style: const TextStyle(
-                            color: WashTheme.textPrimary,
+                          style: TextStyle(
+                            color: context.wash.textPrimary,
                             fontSize: 17,
                             fontWeight: FontWeight.w800,
                           ),
@@ -243,8 +243,8 @@ class _RatesTabState extends ConsumerState<_RatesTab> {
                                 children: [
                                   Text(
                                     pkg['label'] as String,
-                                    style: const TextStyle(
-                                      color: WashTheme.textPrimary,
+                                    style: TextStyle(
+                                      color: context.wash.textPrimary,
                                       fontSize: 15,
                                       fontWeight: FontWeight.w600,
                                     ),
@@ -253,8 +253,8 @@ class _RatesTabState extends ConsumerState<_RatesTab> {
                                       .isNotEmpty)
                                     Text(
                                       pkg['description'] as String,
-                                      style: const TextStyle(
-                                        color: WashTheme.textMuted,
+                                      style: TextStyle(
+                                        color: context.wash.textMuted,
                                         fontSize: 12,
                                       ),
                                     ),
@@ -272,19 +272,19 @@ class _RatesTabState extends ConsumerState<_RatesTab> {
                                   FilteringTextInputFormatter.digitsOnly,
                                 ],
                                 textAlign: TextAlign.right,
-                                style: const TextStyle(
-                                  color: WashTheme.textPrimary,
+                                style: TextStyle(
+                                  color: context.wash.textPrimary,
                                   fontSize: 17,
                                   fontWeight: FontWeight.w800,
                                 ),
                                 decoration: InputDecoration(
-                                  prefixIcon: const Padding(
+                                  prefixIcon: Padding(
                                     padding:
-                                        EdgeInsets.only(left: 12, top: 12),
+                                        const EdgeInsets.only(left: 12, top: 12),
                                     child: Text(
                                       '₹',
                                       style: TextStyle(
-                                        color: WashTheme.accent,
+                                        color: context.wash.accent,
                                         fontSize: 17,
                                         fontWeight: FontWeight.w800,
                                       ),
@@ -293,11 +293,11 @@ class _RatesTabState extends ConsumerState<_RatesTab> {
                                   contentPadding:
                                       const EdgeInsets.symmetric(
                                           horizontal: 14, vertical: 12),
-                                  fillColor: WashTheme.surfaceHigh,
+                                  fillColor: context.wash.surfaceHigh,
                                   border: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(10),
-                                    borderSide: const BorderSide(
-                                        color: WashTheme.border),
+                                    borderSide: BorderSide(
+                                        color: context.wash.border),
                                   ),
                                 ),
                               ),
@@ -359,7 +359,7 @@ class _PackagesTabState extends ConsumerState<_PackagesTab> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: WashTheme.surface,
+      backgroundColor: context.wash.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -376,22 +376,22 @@ class _PackagesTabState extends ConsumerState<_PackagesTab> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: WashTheme.surfaceHigh,
-        title: const Text('Delete package?',
-            style: TextStyle(color: WashTheme.textPrimary)),
+        backgroundColor: context.wash.surfaceHigh,
+        title: Text('Delete package?',
+            style: TextStyle(color: context.wash.textPrimary)),
         content: Text(
           'This will permanently remove "${pkg['label']}" and all its rates.',
-          style: const TextStyle(color: WashTheme.textSecondary),
+          style: TextStyle(color: context.wash.textSecondary),
         ),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel',
-                  style: TextStyle(color: WashTheme.textSecondary))),
+              child: Text('Cancel',
+                  style: TextStyle(color: context.wash.textSecondary))),
           TextButton(
               onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Delete',
-                  style: TextStyle(color: WashTheme.danger))),
+              child: Text('Delete',
+                  style: TextStyle(color: context.wash.danger))),
         ],
       ),
     );
@@ -405,12 +405,12 @@ class _PackagesTabState extends ConsumerState<_PackagesTab> {
         SnackBar(
           content: Row(
             children: [
-              const Icon(Icons.delete_rounded, color: WashTheme.danger, size: 18),
+              Icon(Icons.delete_rounded, color: context.wash.danger, size: 18),
               const SizedBox(width: 10),
               Text('"${pkg['label']}" deleted.'),
             ],
           ),
-          backgroundColor: WashTheme.surfaceHigh,
+          backgroundColor: context.wash.surfaceHigh,
         ),
       );
     }
@@ -419,34 +419,34 @@ class _PackagesTabState extends ConsumerState<_PackagesTab> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: WashTheme.bg,
+      backgroundColor: context.wash.bg,
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _showPackageSheet(),
-        backgroundColor: WashTheme.accent,
-        foregroundColor: WashTheme.bg,
+        backgroundColor: context.wash.accent,
+        foregroundColor: context.wash.bg,
         icon: const Icon(Icons.add_rounded),
         label: const Text('New Package',
             style: TextStyle(fontWeight: FontWeight.w700)),
       ),
       body: _loading
-          ? const Center(
-              child: CircularProgressIndicator(color: WashTheme.accent))
+          ? Center(
+              child: CircularProgressIndicator(color: context.wash.accent))
           : (_packages == null || _packages!.isEmpty)
               ? Center(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.car_repair_rounded,
-                          color: WashTheme.textMuted, size: 48),
+                      Icon(Icons.car_repair_rounded,
+                          color: context.wash.textMuted, size: 48),
                       const SizedBox(height: 16),
-                      const Text('No packages yet.',
+                      Text('No packages yet.',
                           style: TextStyle(
-                              color: WashTheme.textSecondary, fontSize: 16)),
+                              color: context.wash.textSecondary, fontSize: 16)),
                       const SizedBox(height: 8),
                       TextButton(
                           onPressed: () => _showPackageSheet(),
-                          child: const Text('Add first package',
-                              style: TextStyle(color: WashTheme.accent))),
+                          child: Text('Add first package',
+                              style: TextStyle(color: context.wash.accent))),
                     ],
                   ),
                 )
@@ -465,9 +465,9 @@ class _PackagesTabState extends ConsumerState<_PackagesTab> {
                         return Container(
                           padding: const EdgeInsets.all(18),
                           decoration: BoxDecoration(
-                            color: WashTheme.surfaceCard,
+                            color: context.wash.surfaceCard,
                             borderRadius: BorderRadius.circular(18),
-                            border: Border.all(color: WashTheme.border),
+                            border: Border.all(color: context.wash.border),
                           ),
                           child: Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -478,13 +478,13 @@ class _PackagesTabState extends ConsumerState<_PackagesTab> {
                                 height: 32,
                                 alignment: Alignment.center,
                                 decoration: BoxDecoration(
-                                  color: WashTheme.accent.withValues(alpha: 0.12),
+                                  color: context.wash.accent.withValues(alpha: 0.12),
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                                 child: Text(
                                   '${pkg['order']}',
-                                  style: const TextStyle(
-                                    color: WashTheme.accent,
+                                  style: TextStyle(
+                                    color: context.wash.accent,
                                     fontWeight: FontWeight.w800,
                                     fontSize: 14,
                                   ),
@@ -497,8 +497,8 @@ class _PackagesTabState extends ConsumerState<_PackagesTab> {
                                   children: [
                                     Text(
                                       pkg['label'] as String,
-                                      style: const TextStyle(
-                                        color: WashTheme.textPrimary,
+                                      style: TextStyle(
+                                        color: context.wash.textPrimary,
                                         fontSize: 15,
                                         fontWeight: FontWeight.w700,
                                       ),
@@ -508,8 +508,8 @@ class _PackagesTabState extends ConsumerState<_PackagesTab> {
                                       const SizedBox(height: 3),
                                       Text(
                                         pkg['description'] as String,
-                                        style: const TextStyle(
-                                          color: WashTheme.textSecondary,
+                                        style: TextStyle(
+                                          color: context.wash.textSecondary,
                                           fontSize: 12,
                                           height: 1.4,
                                         ),
@@ -518,16 +518,16 @@ class _PackagesTabState extends ConsumerState<_PackagesTab> {
                                     const SizedBox(height: 6),
                                     Row(
                                       children: [
-                                        const Icon(Icons.directions_car_rounded,
+                                        Icon(Icons.directions_car_rounded,
                                             size: 13,
-                                            color: WashTheme.textMuted),
+                                            color: context.wash.textMuted),
                                         const SizedBox(width: 4),
                                         Text(
                                           vtLabels.isNotEmpty
                                               ? vtLabels
                                               : 'No vehicle types',
-                                          style: const TextStyle(
-                                            color: WashTheme.textMuted,
+                                          style: TextStyle(
+                                            color: context.wash.textMuted,
                                             fontSize: 11,
                                           ),
                                         ),
@@ -536,14 +536,14 @@ class _PackagesTabState extends ConsumerState<_PackagesTab> {
                                           padding: const EdgeInsets.symmetric(
                                               horizontal: 7, vertical: 2),
                                           decoration: BoxDecoration(
-                                            color: WashTheme.surfaceHigh,
+                                            color: context.wash.surfaceHigh,
                                             borderRadius:
                                                 BorderRadius.circular(5),
                                           ),
                                           child: Text(
                                             'ID: ${pkg['id']}',
-                                            style: const TextStyle(
-                                              color: WashTheme.textMuted,
+                                            style: TextStyle(
+                                              color: context.wash.textMuted,
                                               fontSize: 10,
                                               fontFamily: 'monospace',
                                             ),
@@ -563,7 +563,7 @@ class _PackagesTabState extends ConsumerState<_PackagesTab> {
                                         _showPackageSheet(existing: pkg),
                                     icon: const Icon(Icons.edit_rounded,
                                         size: 18),
-                                    color: WashTheme.textSecondary,
+                                    color: context.wash.textSecondary,
                                     tooltip: 'Edit',
                                     visualDensity: VisualDensity.compact,
                                   ),
@@ -572,7 +572,7 @@ class _PackagesTabState extends ConsumerState<_PackagesTab> {
                                     icon: const Icon(
                                         Icons.delete_outline_rounded,
                                         size: 18),
-                                    color: WashTheme.danger,
+                                    color: context.wash.danger,
                                     tooltip: 'Delete',
                                     visualDensity: VisualDensity.compact,
                                   ),
@@ -672,13 +672,13 @@ class _PackageFormSheetState extends ConsumerState<_PackageFormSheet> {
           SnackBar(
             content: Row(
               children: [
-                const Icon(Icons.check_circle_rounded,
-                    color: WashTheme.success, size: 18),
+                Icon(Icons.check_circle_rounded,
+                    color: context.wash.success, size: 18),
                 const SizedBox(width: 10),
                 Text(_isNew ? 'Package created!' : 'Package updated!'),
               ],
             ),
-            backgroundColor: WashTheme.surfaceHigh,
+            backgroundColor: context.wash.surfaceHigh,
           ),
         );
       }
@@ -694,11 +694,11 @@ class _PackageFormSheetState extends ConsumerState<_PackageFormSheet> {
       contentPadding: EdgeInsets.zero,
       title: Text(
         '${VehicleType.emoji(vtId)}  ${VehicleType.label(vtId)}',
-        style: const TextStyle(color: WashTheme.textPrimary, fontSize: 14),
+        style: TextStyle(color: context.wash.textPrimary, fontSize: 14),
       ),
       value: checked,
-      activeColor: WashTheme.accent,
-      checkColor: WashTheme.bg,
+      activeColor: context.wash.accent,
+      checkColor: context.wash.bg,
       onChanged: (val) => setState(() {
         if (val == true) {
           _vehicleTypes.add(vtId);
@@ -728,7 +728,7 @@ class _PackageFormSheetState extends ConsumerState<_PackageFormSheet> {
                   width: 40,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: WashTheme.border,
+                    color: context.wash.border,
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -736,8 +736,8 @@ class _PackageFormSheetState extends ConsumerState<_PackageFormSheet> {
               const SizedBox(height: 20),
               Text(
                 _isNew ? 'New Package' : 'Edit Package',
-                style: const TextStyle(
-                  color: WashTheme.textPrimary,
+                style: TextStyle(
+                  color: context.wash.textPrimary,
                   fontSize: 20,
                   fontWeight: FontWeight.w800,
                 ),
@@ -748,8 +748,8 @@ class _PackageFormSheetState extends ConsumerState<_PackageFormSheet> {
               if (_isNew) ...[
                 TextFormField(
                   controller: _idCtrl,
-                  style: const TextStyle(
-                      color: WashTheme.textPrimary, fontFamily: 'monospace'),
+                  style: TextStyle(
+                      color: context.wash.textPrimary, fontFamily: 'monospace'),
                   decoration: const InputDecoration(
                     labelText: 'Package ID (snake_case)',
                     hintText: 'e.g. premium_wash',
@@ -771,7 +771,7 @@ class _PackageFormSheetState extends ConsumerState<_PackageFormSheet> {
               // Label
               TextFormField(
                 controller: _labelCtrl,
-                style: const TextStyle(color: WashTheme.textPrimary),
+                style: TextStyle(color: context.wash.textPrimary),
                 decoration: const InputDecoration(labelText: 'Label *'),
                 onChanged: _autoSuggestId,
                 validator: (v) =>
@@ -782,7 +782,7 @@ class _PackageFormSheetState extends ConsumerState<_PackageFormSheet> {
               // Description
               TextFormField(
                 controller: _descCtrl,
-                style: const TextStyle(color: WashTheme.textPrimary),
+                style: TextStyle(color: context.wash.textPrimary),
                 decoration:
                     const InputDecoration(labelText: 'Description (optional)'),
                 maxLines: 2,
@@ -790,10 +790,10 @@ class _PackageFormSheetState extends ConsumerState<_PackageFormSheet> {
               const SizedBox(height: 20),
 
               // Vehicle types
-              const Text(
+              Text(
                 'Applies to',
                 style: TextStyle(
-                    color: WashTheme.textSecondary,
+                    color: context.wash.textSecondary,
                     fontSize: 13,
                     fontWeight: FontWeight.w600),
               ),
@@ -804,7 +804,7 @@ class _PackageFormSheetState extends ConsumerState<_PackageFormSheet> {
               // Order
               TextFormField(
                 controller: _orderCtrl,
-                style: const TextStyle(color: WashTheme.textPrimary),
+                style: TextStyle(color: context.wash.textPrimary),
                 decoration:
                     const InputDecoration(labelText: 'Display order (number)'),
                 keyboardType: TextInputType.number,

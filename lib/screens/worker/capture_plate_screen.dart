@@ -55,32 +55,28 @@ class _CapturePlateScreenState extends ConsumerState<CapturePlateScreen> {
       _processing = true;
       _error = null;
     });
+    var ocrText = '';
     try {
       final ocr = ref.read(ocrServiceProvider);
-      final text = await ocr.extractPlate(_previewBytes!);
-      if (!mounted) return;
-      context.push('/worker/confirm-plate', extra: {
-        'imageBytes': _previewBytes!.toList(),
-        'ocrText': text,
-      });
-    } catch (e) {
-      if (mounted) {
-        setState(() => _error = 'Could not read plate. Tap Next to enter it manually.');
-        // Still allow proceeding with empty OCR text
-        context.push('/worker/confirm-plate', extra: {
-          'imageBytes': _previewBytes!.toList(),
-          'ocrText': '',
-        });
-      }
-    } finally {
-      if (mounted) setState(() => _processing = false);
+      ocrText = await ocr.extractPlate(_previewBytes!);
+    } catch (_) {
+      // OCR is best-effort. Carry on with an empty plate — the next screen
+      // lets the worker type it. (Previously this both showed an error and
+      // navigated away from it in the same frame.)
+      ocrText = '';
     }
+    if (!mounted) return;
+    setState(() => _processing = false);
+    await context.push('/worker/confirm-plate', extra: {
+      'imageBytes': _previewBytes!.toList(),
+      'ocrText': ocrText,
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: WashTheme.bg,
+      backgroundColor: context.wash.bg,
       appBar: WorkerAppBar(
         title: 'Plate photo',
         extraActions: [
@@ -130,31 +126,31 @@ class _CaptureView extends StatelessWidget {
               width: 280,
               height: 200,
               decoration: BoxDecoration(
-                color: WashTheme.surfaceCard,
+                color: context.wash.surfaceCard,
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: WashTheme.border, width: 2),
+                border: Border.all(color: context.wash.border, width: 2),
               ),
               child: Stack(
                 alignment: Alignment.center,
                 children: [
-                  const Icon(Icons.directions_car_rounded,
-                      size: 80, color: WashTheme.textMuted),
+                  Icon(Icons.directions_car_rounded,
+                      size: 80, color: context.wash.textMuted),
                   Positioned(
                     bottom: 24,
                     child: Container(
                       width: 150,
                       height: 34,
                       decoration: BoxDecoration(
-                        color: WashTheme.accent.withValues(alpha: 0.15),
+                        color: context.wash.accent.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(4),
                         border:
-                            Border.all(color: WashTheme.accent, width: 2),
+                            Border.all(color: context.wash.accent, width: 2),
                       ),
-                      child: const Center(
+                      child: Center(
                         child: Text(
                           'NUMBER PLATE',
                           style: TextStyle(
-                            color: WashTheme.accent,
+                            color: context.wash.accent,
                             fontSize: 10,
                             fontWeight: FontWeight.w800,
                             letterSpacing: 2,
@@ -177,13 +173,13 @@ class _CaptureView extends StatelessWidget {
           style: Theme.of(context)
               .textTheme
               .headlineMedium
-              ?.copyWith(color: WashTheme.textPrimary),
+              ?.copyWith(color: context.wash.textPrimary),
         ),
         const SizedBox(height: 8),
-        const Text(
+        Text(
           'Make sure the plate is well-lit,\nsharp, and fully in frame',
           textAlign: TextAlign.center,
-          style: TextStyle(color: WashTheme.textSecondary, fontSize: 14, height: 1.5),
+          style: TextStyle(color: context.wash.textSecondary, fontSize: 14, height: 1.5),
         ),
 
         const Spacer(),
@@ -231,10 +227,10 @@ class _PreviewView extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         // Section label
-        const Text(
+        Text(
           'CHECK YOUR PHOTO',
           style: TextStyle(
-            color: WashTheme.textSecondary,
+            color: context.wash.textSecondary,
             fontSize: 12,
             fontWeight: FontWeight.w700,
             letterSpacing: 1.2,
@@ -288,7 +284,7 @@ class _PreviewView extends StatelessWidget {
                     color: Colors.black.withValues(alpha: 0.5),
                     borderRadius: BorderRadius.circular(6),
                     border: Border.all(
-                        color: WashTheme.accent.withValues(alpha: 0.7), width: 1.5),
+                        color: context.wash.accent.withValues(alpha: 0.7), width: 1.5),
                   ),
                   child: const Text(
                     'Is the plate clearly visible?',
@@ -310,13 +306,13 @@ class _PreviewView extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.info_outline_rounded,
-                size: 14, color: WashTheme.textMuted),
+            Icon(Icons.info_outline_rounded,
+                size: 14, color: context.wash.textMuted),
             const SizedBox(width: 6),
             Text(
               'Tap × to retake if the plate is blurry or cut off',
-              style: const TextStyle(
-                  color: WashTheme.textMuted, fontSize: 12),
+              style: TextStyle(
+                  color: context.wash.textMuted, fontSize: 12),
             ),
           ],
         ),
@@ -330,21 +326,21 @@ class _PreviewView extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               decoration: BoxDecoration(
-                color: WashTheme.warning.withValues(alpha: 0.12),
+                color: context.wash.warning.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(
-                    color: WashTheme.warning.withValues(alpha: 0.4)),
+                    color: context.wash.warning.withValues(alpha: 0.4)),
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.warning_amber_rounded,
-                      color: WashTheme.warning, size: 18),
+                  Icon(Icons.warning_amber_rounded,
+                      color: context.wash.warning, size: 18),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       error!,
-                      style: const TextStyle(
-                          color: WashTheme.warning,
+                      style: TextStyle(
+                          color: context.wash.warning,
                           fontSize: 13,
                           fontWeight: FontWeight.w500),
                     ),
@@ -358,11 +354,11 @@ class _PreviewView extends StatelessWidget {
         ElevatedButton(
           onPressed: processing ? null : onProceed,
           child: processing
-              ? const SizedBox(
+              ? SizedBox(
                   width: 22,
                   height: 22,
                   child: CircularProgressIndicator(
-                      strokeWidth: 2.5, color: WashTheme.bg),
+                      strokeWidth: 2.5, color: context.wash.bg),
                 )
               : const Row(
                   mainAxisAlignment: MainAxisAlignment.center,

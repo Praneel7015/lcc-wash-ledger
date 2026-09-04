@@ -13,6 +13,7 @@ import '../../core/constants.dart';
 import '../../core/theme.dart';
 import '../../models/visit.dart';
 import '../../models/wash_draft.dart';
+import '../../providers/package_labels_provider.dart';
 import '../../providers/wash_session_provider.dart';
 import '../../services/providers.dart';
 import '../../widgets/worker_app_bar.dart';
@@ -99,7 +100,7 @@ class _PhonePaidScreenState extends ConsumerState<PhonePaidScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Save failed: $e'), backgroundColor: WashTheme.danger),
+          SnackBar(content: Text('Save failed: $e'), backgroundColor: context.wash.danger),
         );
       }
     } finally {
@@ -112,7 +113,7 @@ class _PhonePaidScreenState extends ConsumerState<PhonePaidScreen> {
       context: context,
       barrierDismissible: false,
       builder: (_) => AlertDialog(
-        backgroundColor: WashTheme.surface,
+        backgroundColor: context.wash.surface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
@@ -121,8 +122,8 @@ class _PhonePaidScreenState extends ConsumerState<PhonePaidScreen> {
             Container(
               width: 64,
               height: 64,
-              decoration: const BoxDecoration(
-                color: WashTheme.success,
+              decoration: BoxDecoration(
+                color: context.wash.success,
                 shape: BoxShape.circle,
               ),
               child: const Icon(Icons.check, color: Colors.white, size: 36),
@@ -135,7 +136,7 @@ class _PhonePaidScreenState extends ConsumerState<PhonePaidScreen> {
             const SizedBox(height: 8),
             Text(
               '${widget.draft.plate}  ·  ₹${widget.draft.amount}',
-              style: const TextStyle(color: WashTheme.textSecondary),
+              style: TextStyle(color: context.wash.textSecondary),
             ),
             const SizedBox(height: 24),
             ElevatedButton(
@@ -167,9 +168,9 @@ class _PhonePaidScreenState extends ConsumerState<PhonePaidScreen> {
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: WashTheme.surface,
+                  color: context.wash.surface,
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: WashTheme.border),
+                  border: Border.all(color: context.wash.border),
                 ),
                 child: Column(
                   children: [
@@ -186,7 +187,10 @@ class _PhonePaidScreenState extends ConsumerState<PhonePaidScreen> {
                     const Divider(height: 20),
                     _SummaryRow(
                       label: 'Package',
-                      value: WashPackage.label(widget.draft.packageId),
+                      value: resolvePackageLabel(
+                        ref.watch(packageLabelsProvider),
+                        widget.draft.packageId,
+                      ),
                     ),
                     const Divider(height: 20),
                     _SummaryRow(
@@ -204,11 +208,11 @@ class _PhonePaidScreenState extends ConsumerState<PhonePaidScreen> {
                 controller: _phoneCtrl,
                 keyboardType: TextInputType.phone,
                 inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                style: const TextStyle(color: WashTheme.textPrimary, fontSize: 22),
-                decoration: const InputDecoration(
+                style: TextStyle(color: context.wash.textPrimary, fontSize: 22),
+                decoration: InputDecoration(
                   labelText: 'Customer phone',
                   prefixIcon: Icon(Icons.phone_outlined,
-                      color: WashTheme.textSecondary),
+                      color: context.wash.textSecondary),
                   hintText: '9876543210',
                 ),
               ),
@@ -227,7 +231,7 @@ class _PhonePaidScreenState extends ConsumerState<PhonePaidScreen> {
                       label: 'Paid',
                       icon: Icons.check_circle_rounded,
                       selected: _paid,
-                      color: WashTheme.success,
+                      color: context.wash.success,
                       onTap: () => setState(() {
                         _paid = true;
                       }),
@@ -239,7 +243,7 @@ class _PhonePaidScreenState extends ConsumerState<PhonePaidScreen> {
                       label: 'Not paid',
                       icon: Icons.schedule_rounded,
                       selected: !_paid,
-                      color: WashTheme.danger,
+                      color: context.wash.danger,
                       onTap: () => setState(() {
                         _paid = false;
                         _paymentMethod = null;
@@ -262,7 +266,7 @@ class _PhonePaidScreenState extends ConsumerState<PhonePaidScreen> {
                         label: 'Cash',
                         icon: Icons.payments_outlined,
                         selected: _paymentMethod == PaymentMethod.cash,
-                        color: WashTheme.accent,
+                        color: context.wash.accent,
                         onTap: () => setState(
                             () => _paymentMethod = PaymentMethod.cash),
                       ),
@@ -273,7 +277,7 @@ class _PhonePaidScreenState extends ConsumerState<PhonePaidScreen> {
                         label: 'UPI',
                         icon: Icons.qr_code_2_rounded,
                         selected: _paymentMethod == PaymentMethod.upi,
-                        color: WashTheme.accent,
+                        color: context.wash.accent,
                         onTap: () =>
                             setState(() => _paymentMethod = PaymentMethod.upi),
                       ),
@@ -291,11 +295,11 @@ class _PhonePaidScreenState extends ConsumerState<PhonePaidScreen> {
                   minimumSize: const Size(double.infinity, 64),
                 ),
                 child: _saving
-                    ? const SizedBox(
+                    ? SizedBox(
                         width: 24,
                         height: 24,
                         child: CircularProgressIndicator(
-                            strokeWidth: 2.5, color: WashTheme.bg),
+                            strokeWidth: 2.5, color: context.wash.bg),
                       )
                     : const Text('Save wash', style: TextStyle(fontSize: 18)),
               ),
@@ -330,21 +334,21 @@ class _PaymentOption extends StatelessWidget {
         duration: const Duration(milliseconds: 150),
         padding: const EdgeInsets.symmetric(vertical: 18),
         decoration: BoxDecoration(
-          color: selected ? color.withValues(alpha: 0.12) : WashTheme.surface,
+          color: selected ? color.withValues(alpha: 0.12) : context.wash.surface,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: selected ? color : WashTheme.border,
+            color: selected ? color : context.wash.border,
             width: selected ? 2 : 1,
           ),
         ),
         child: Column(
           children: [
-            Icon(icon, color: selected ? color : WashTheme.textMuted, size: 28),
+            Icon(icon, color: selected ? color : context.wash.textMuted, size: 28),
             const SizedBox(height: 8),
             Text(
               label,
               style: TextStyle(
-                color: selected ? color : WashTheme.textSecondary,
+                color: selected ? color : context.wash.textSecondary,
                 fontSize: 15,
                 fontWeight: FontWeight.w700,
               ),
@@ -375,8 +379,8 @@ class _SummaryRow extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(label,
-            style: const TextStyle(
-                color: WashTheme.textSecondary, fontSize: 15)),
+            style: TextStyle(
+                color: context.wash.textSecondary, fontSize: 15)),
         if (isPlate)
           Container(
             padding:
@@ -401,7 +405,7 @@ class _SummaryRow extends StatelessWidget {
           Text(
             value,
             style: TextStyle(
-              color: highlight ? WashTheme.accent : WashTheme.textPrimary,
+              color: highlight ? context.wash.accent : context.wash.textPrimary,
               fontSize: highlight ? 22 : 16,
               fontWeight: FontWeight.w700,
             ),

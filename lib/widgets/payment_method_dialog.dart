@@ -13,7 +13,7 @@ Future<String?> showPaymentMethodDialog(
   return showDialog<String>(
     context: context,
     builder: (ctx) => AlertDialog(
-      backgroundColor: WashTheme.surfaceCard,
+      backgroundColor: context.wash.surfaceCard,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       title: const Text('Paid by'),
       content: Column(
@@ -23,8 +23,8 @@ Future<String?> showPaymentMethodDialog(
           if (subtitle != null) ...[
             Text(
               subtitle,
-              style: const TextStyle(
-                color: WashTheme.textSecondary,
+              style: TextStyle(
+                color: context.wash.textSecondary,
                 height: 1.4,
               ),
             ),
@@ -54,9 +54,9 @@ Future<String?> showPaymentMethodDialog(
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(ctx),
-          child: const Text(
+          child: Text(
             'Cancel',
-            style: TextStyle(color: WashTheme.textSecondary),
+            style: TextStyle(color: context.wash.textSecondary),
           ),
         ),
       ],
@@ -82,18 +82,18 @@ class _MethodOption extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 18),
         decoration: BoxDecoration(
-          color: WashTheme.surface,
+          color: context.wash.surface,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: WashTheme.border),
+          border: Border.all(color: context.wash.border),
         ),
         child: Column(
           children: [
-            Icon(icon, color: WashTheme.accent, size: 28),
+            Icon(icon, color: context.wash.accent, size: 28),
             const SizedBox(height: 8),
             Text(
               label,
-              style: const TextStyle(
-                color: WashTheme.textPrimary,
+              style: TextStyle(
+                color: context.wash.textPrimary,
                 fontSize: 15,
                 fontWeight: FontWeight.w700,
               ),
