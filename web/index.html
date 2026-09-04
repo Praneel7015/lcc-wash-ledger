@@ -8,6 +8,14 @@
   <meta name="description" content="Luxury Car Care — Owner Dashboard & Operations">
   <title>Luxury Car Care — Dashboard</title>
 
+  <!-- Browser chrome follows the theme -->
+  <meta name="theme-color" content="#FBFAF7" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0F0E0D" media="(prefers-color-scheme: dark)">
+  <meta name="color-scheme" content="light dark">
+
+  <link rel="icon" type="image/png" href="favicon.png">
+  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+
   <!-- Brand fonts: Inter (UI) + Playfair Display (headings) + IBM Plex Mono (data) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -15,14 +23,25 @@
 
   <style>
     * { box-sizing: border-box; }
+    /* Boot colours only. Once Flutter paints, WashTheme owns everything.
+       Defined for both schemes so the first frame never flashes the wrong
+       background before the engine loads. */
+    :root { color-scheme: light dark; }
     body {
       margin: 0;
       padding: 0;
-      background-color: #0F0E0D;
-      color: #FAFAF8;
+      background-color: #FBFAF7;
+      color: #1C1917;
       font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       overflow: hidden;
     }
+    @media (prefers-color-scheme: dark) {
+      body { background-color: #0F0E0D; color: #FAFAF8; }
+    }
+    /* A saved manual override wins over the OS setting. */
+    body[data-boot-theme="light"] { background-color: #FBFAF7; color: #1C1917; }
+    body[data-boot-theme="dark"]  { background-color: #0F0E0D; color: #FAFAF8; }
+
     flt-semantics-placeholder,
     flt-semantics-host {
       outline: none !important;
@@ -32,6 +51,23 @@
   <link rel="manifest" href="manifest.json">
 </head>
 <body>
+  <script>
+    // shared_preferences stores web values under a "flutter." prefix. Reading it
+    // here means a user who chose light mode does not get a dark flash (or vice
+    // versa) while the Flutter engine boots.
+    try {
+      var saved = window.localStorage.getItem('flutter.themeMode');
+      if (saved) {
+        // Values are stored JSON-encoded on some plugin versions.
+        var mode = saved.replace(/^"|"$/g, '');
+        if (mode === 'light' || mode === 'dark') {
+          document.body.setAttribute('data-boot-theme', mode);
+          var meta = document.querySelector('meta[name="theme-color"]');
+          if (meta) meta.setAttribute('content', mode === 'dark' ? '#0F0E0D' : '#FBFAF7');
+        }
+      }
+    } catch (e) { /* private mode / storage disabled — fall back to the OS setting */ }
+  </script>
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>

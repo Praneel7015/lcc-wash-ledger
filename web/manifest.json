@@ -1,12 +1,12 @@
 {
-  "name": "WashLog",
-  "short_name": "WashLog",
+  "name": "Luxury Car Care",
+  "short_name": "Car Care",
   "start_url": ".",
   "display": "standalone",
-  "background_color": "#0D0F14",
-  "theme_color": "#FFD60A",
-  "description": "Car wash vehicle tracking",
-  "orientation": "portrait-primary",
+  "background_color": "#0F0E0D",
+  "theme_color": "#C9952A",
+  "description": "Car wash vehicle tracking — owner dashboard and field operations",
+  "orientation": "any",
   "prefer_related_applications": false,
   "icons": [
     {
