@@ -33,8 +33,10 @@ android {
 
     defaultConfig {
         applicationId "com.washlog.app"
-        // API 21 = Android 5.0 — covers 99%+ of active devices
-        minSdkVersion 21
+        // API 24 = Android 7.0 — Flutter's own minimum; it rewrites anything
+        // lower to flutter.minSdkVersion on every build. Pinned explicitly so
+        // the shipped floor is visible and changes show up as a real diff.
+        minSdkVersion 24
         targetSdk 36
         versionCode flutterVersionCode.toInteger()
         versionName flutterVersionName
