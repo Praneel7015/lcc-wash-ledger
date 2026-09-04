@@ -13,8 +13,25 @@ class FirestoreService {
 
   // ── Visits ──────────────────────────────────────────────────────────
 
+  /// Writes a visit. An empty [Visit.id] gets a generated document id.
+  ///
+  /// When the caller supplies a stable id the write is create-if-absent inside
+  /// a transaction, so re-sending the same wash — a retry, or a write whose
+  /// response was lost in flight — resolves to the record that is already there
+  /// instead of a second one. Deliberately not a plain `set`: that counts as an
+  /// update, and firestore.rules only lets a worker change `paid` and
+  /// `paymentMethod` on a visit that already exists, so a retry would be denied.
   Future<String> saveVisit(Visit visit) async {
-    final ref = await _db.collection('visits').add(visit.toFirestore());
+    if (visit.id.isEmpty) {
+      final ref = await _db.collection('visits').add(visit.toFirestore());
+      return ref.id;
+    }
+    final ref = _db.collection('visits').doc(visit.id);
+    await _db.runTransaction<void>((tx) async {
+      final snap = await tx.get(ref);
+      if (snap.exists) return;
+      tx.set(ref, visit.toFirestore());
+    });
     return ref.id;
   }
 

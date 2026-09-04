@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:uuid/uuid.dart';
 
 import '../../core/constants.dart';
 import '../../core/theme.dart';
@@ -32,6 +33,11 @@ class _PhonePaidScreenState extends ConsumerState<PhonePaidScreen> {
   String? _paymentMethod;
   bool _saving = false;
 
+  // One id per save attempt, generated up front rather than by Firestore.
+  // A retry then resolves to the record already written instead of adding a
+  // second one; .add() minted a fresh id on every call.
+  late final String _visitId = const Uuid().v4();
+
   @override
   void initState() {
     super.initState();
@@ -47,6 +53,12 @@ class _PhonePaidScreenState extends ConsumerState<PhonePaidScreen> {
   }
 
   Future<void> _save() async {
+    // The button is disabled via _saving, but setState only *schedules* a
+    // rebuild — it does not perform one. A fast double-tap delivers both taps
+    // to the old widget, whose onPressed is still live, so _save() ran twice
+    // and saveVisit() (.add()) wrote a second visit plus a second pair of
+    // photo uploads. Re-entry has to be blocked here, not just in the UI.
+    if (_saving) return;
     setState(() => _saving = true);
     try {
       final svc = ref.read(firestoreServiceProvider);
@@ -77,7 +89,7 @@ class _PhonePaidScreenState extends ConsumerState<PhonePaidScreen> {
       ]);
 
       final visit = Visit(
-        id: '',
+        id: _visitId,
         plate: widget.draft.plate,
         phone: _phoneCtrl.text.trim().isEmpty ? null : _phoneCtrl.text.trim(),
         vehicleType: widget.draft.vehicleType,
