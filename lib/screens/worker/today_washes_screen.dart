@@ -7,6 +7,8 @@ import 'package:intl/intl.dart';
 import '../../core/constants.dart';
 import '../../core/theme.dart';
 import '../../models/visit.dart';
+import '../../providers/package_labels_provider.dart';
+import '../../providers/visits_provider.dart';
 import '../../services/providers.dart';
 import '../../widgets/payment_method_dialog.dart';
 import '../../widgets/worker_app_bar.dart';
@@ -40,7 +42,7 @@ class TodayWashesScreen extends ConsumerWidget {
               content: Text(
                 '${formatIndianPlate(visit.plate)} marked paid (${PaymentMethod.label(method)})',
               ),
-              backgroundColor: WashTheme.surfaceHigh,
+              backgroundColor: context.wash.surfaceHigh,
             ),
           );
         }
@@ -49,7 +51,7 @@ class TodayWashesScreen extends ConsumerWidget {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('Update failed: $e'),
-              backgroundColor: WashTheme.danger,
+              backgroundColor: context.wash.danger,
             ),
           );
         }
@@ -60,19 +62,19 @@ class TodayWashesScreen extends ConsumerWidget {
     final ok = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        backgroundColor: WashTheme.surfaceCard,
+        backgroundColor: context.wash.surfaceCard,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Text('Mark unpaid?'),
         content: Text(
           'Plate ${formatIndianPlate(visit.plate)} — ₹${visit.amount}\n\n'
           'This will mark the wash as unpaid for today\'s record.',
-          style: const TextStyle(color: WashTheme.textSecondary, height: 1.4),
+          style: TextStyle(color: context.wash.textSecondary, height: 1.4),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel',
-                style: TextStyle(color: WashTheme.textSecondary)),
+            child: Text('Cancel',
+                style: TextStyle(color: context.wash.textSecondary)),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
@@ -94,7 +96,7 @@ class TodayWashesScreen extends ConsumerWidget {
             content: Text(
               '${formatIndianPlate(visit.plate)} marked unpaid',
             ),
-            backgroundColor: WashTheme.surfaceHigh,
+            backgroundColor: context.wash.surfaceHigh,
           ),
         );
       }
@@ -103,7 +105,7 @@ class TodayWashesScreen extends ConsumerWidget {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Update failed: $e'),
-            backgroundColor: WashTheme.danger,
+            backgroundColor: context.wash.danger,
           ),
         );
       }
@@ -112,39 +114,73 @@ class TodayWashesScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final svc = ref.watch(firestoreServiceProvider);
-    final todayStream = svc.visitsForDay(DateTime.now());
+    // Keyed by midnight: `visitsForDay(DateTime.now())` inside build() opened a
+    // brand-new Firestore listener on every rebuild.
+    final dayKey = startOfDay(DateTime.now());
+    final visitsAsync = ref.watch(visitsForDayProvider(dayKey));
+    final packageLabels = ref.watch(packageLabelsProvider);
     final timeFmt = DateFormat('h:mm a');
 
     return Scaffold(
-      backgroundColor: WashTheme.bg,
+      backgroundColor: context.wash.bg,
       appBar: const WorkerAppBar(title: "Today's washes"),
-      body: StreamBuilder<List<Visit>>(
-        stream: todayStream,
-        builder: (context, snap) {
-          if (snap.connectionState == ConnectionState.waiting) {
-            return const Center(
-              child: CircularProgressIndicator(color: WashTheme.accent),
-            );
-          }
-
-          final visits = snap.data ?? [];
+      body: visitsAsync.when(
+        loading: () => Center(
+          child: CircularProgressIndicator(color: context.wash.accent),
+        ),
+        error: (err, _) => Center(
+          child: Padding(
+            padding: const EdgeInsets.all(32),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.cloud_off_rounded,
+                    size: 44, color: context.wash.danger),
+                const SizedBox(height: 14),
+                Text(
+                  "Couldn't load today's washes",
+                  style: TextStyle(
+                    color: context.wash.textPrimary,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  '$err',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: context.wash.textMuted, fontSize: 12),
+                ),
+                const SizedBox(height: 18),
+                OutlinedButton.icon(
+                  onPressed: () =>
+                      ref.invalidate(visitsForDayProvider(dayKey)),
+                  icon: const Icon(Icons.refresh_rounded, size: 18),
+                  label: const Text('Try again'),
+                  style: OutlinedButton.styleFrom(
+                      minimumSize: const Size(180, 44)),
+                ),
+              ],
+            ),
+          ),
+        ),
+        data: (visits) {
           final unpaid = visits.where((v) => !v.paid).length;
 
           if (visits.isEmpty) {
-            return const Center(
+            return Center(
               child: Padding(
-                padding: EdgeInsets.all(32),
+                padding: const EdgeInsets.all(32),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Icon(Icons.local_car_wash_outlined,
-                        size: 48, color: WashTheme.textMuted),
-                    SizedBox(height: 16),
+                        size: 48, color: context.wash.textMuted),
+                    const SizedBox(height: 16),
                     Text(
                       'No washes logged today yet',
                       style: TextStyle(
-                        color: WashTheme.textPrimary,
+                        color: context.wash.textPrimary,
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
                       ),
@@ -164,8 +200,8 @@ class TodayWashesScreen extends ConsumerWidget {
                   children: [
                     Text(
                       '${visits.length} wash${visits.length == 1 ? '' : 'es'} today',
-                      style: const TextStyle(
-                        color: WashTheme.textPrimary,
+                      style: TextStyle(
+                        color: context.wash.textPrimary,
                         fontSize: 16,
                         fontWeight: FontWeight.w800,
                       ),
@@ -176,16 +212,16 @@ class TodayWashesScreen extends ConsumerWidget {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 8, vertical: 3),
                         decoration: BoxDecoration(
-                          color: WashTheme.danger.withValues(alpha: 0.15),
+                          color: context.wash.danger.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(6),
                           border: Border.all(
                               color:
-                                  WashTheme.danger.withValues(alpha: 0.3)),
+                                  context.wash.danger.withValues(alpha: 0.3)),
                         ),
                         child: Text(
                           '$unpaid unpaid',
-                          style: const TextStyle(
-                            color: WashTheme.danger,
+                          style: TextStyle(
+                            color: context.wash.danger,
                             fontSize: 11,
                             fontWeight: FontWeight.w700,
                           ),
@@ -195,11 +231,11 @@ class TodayWashesScreen extends ConsumerWidget {
                   ],
                 ),
               ),
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 16),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Text(
                   'Tap payment status to update when customer pays later',
-                  style: TextStyle(color: WashTheme.textMuted, fontSize: 12),
+                  style: TextStyle(color: context.wash.textMuted, fontSize: 12),
                 ),
               ),
               const SizedBox(height: 8),
@@ -212,6 +248,8 @@ class TodayWashesScreen extends ConsumerWidget {
                     return _TodayWashTile(
                       visit: visit,
                       time: timeFmt.format(visit.createdAt),
+                      packageLabel: resolvePackageLabel(
+                          packageLabels, visit.packageId),
                       onTogglePaid: () => _togglePaid(context, ref, visit),
                     );
                   },
@@ -228,11 +266,13 @@ class TodayWashesScreen extends ConsumerWidget {
 class _TodayWashTile extends StatelessWidget {
   final Visit visit;
   final String time;
+  final String packageLabel;
   final VoidCallback onTogglePaid;
 
   const _TodayWashTile({
     required this.visit,
     required this.time,
+    required this.packageLabel,
     required this.onTogglePaid,
   });
 
@@ -242,9 +282,9 @@ class _TodayWashTile extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: WashTheme.surfaceCard,
+        color: context.wash.surfaceCard,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: WashTheme.border),
+        border: Border.all(color: context.wash.border),
       ),
       child: Row(
         children: [
@@ -254,8 +294,8 @@ class _TodayWashTile extends StatelessWidget {
               children: [
                 Text(
                   formatIndianPlate(visit.plate),
-                  style: const TextStyle(
-                    color: WashTheme.textPrimary,
+                  style: TextStyle(
+                    color: context.wash.textPrimary,
                     fontSize: 16,
                     fontWeight: FontWeight.w800,
                     letterSpacing: 1,
@@ -263,17 +303,17 @@ class _TodayWashTile extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '${VehicleType.label(visit.vehicleType)} · ${WashPackage.label(visit.packageId)}',
-                  style: const TextStyle(
-                    color: WashTheme.textSecondary,
+                  '${VehicleType.label(visit.vehicleType)} · $packageLabel',
+                  style: TextStyle(
+                    color: context.wash.textSecondary,
                     fontSize: 12,
                   ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   time,
-                  style: const TextStyle(
-                    color: WashTheme.textMuted,
+                  style: TextStyle(
+                    color: context.wash.textMuted,
                     fontSize: 11,
                   ),
                 ),
@@ -285,8 +325,8 @@ class _TodayWashTile extends StatelessWidget {
             children: [
               Text(
                 '₹${visit.amount}',
-                style: const TextStyle(
-                  color: WashTheme.textPrimary,
+                style: TextStyle(
+                  color: context.wash.textPrimary,
                   fontSize: 17,
                   fontWeight: FontWeight.w900,
                 ),
@@ -299,13 +339,13 @@ class _TodayWashTile extends StatelessWidget {
                       const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                   decoration: BoxDecoration(
                     color: visit.paid
-                        ? WashTheme.success.withValues(alpha: 0.15)
-                        : WashTheme.danger.withValues(alpha: 0.15),
+                        ? context.wash.success.withValues(alpha: 0.15)
+                        : context.wash.danger.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(6),
                     border: Border.all(
                       color: visit.paid
-                          ? WashTheme.success.withValues(alpha: 0.3)
-                          : WashTheme.danger.withValues(alpha: 0.3),
+                          ? context.wash.success.withValues(alpha: 0.3)
+                          : context.wash.danger.withValues(alpha: 0.3),
                     ),
                   ),
                   child: Text(
@@ -316,7 +356,7 @@ class _TodayWashTile extends StatelessWidget {
                         : 'UNPAID',
                     style: TextStyle(
                       color:
-                          visit.paid ? WashTheme.success : WashTheme.danger,
+                          visit.paid ? context.wash.success : context.wash.danger,
                       fontSize: 10,
                       fontWeight: FontWeight.w800,
                       letterSpacing: 0.5,

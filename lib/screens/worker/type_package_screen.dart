@@ -35,9 +35,18 @@ class _TypePackageScreenState extends ConsumerState<TypePackageScreen> {
   String? _vehicleType;
   String? _packageId;
 
+  // Watched during build (rebuilds when rates load); read on tap. Calling
+  // ref.watch from an event handler is a Riverpod misuse.
   int get _amount {
     if (_vehicleType == null || _packageId == null) return 0;
     return ref.watch(selectedAmountProvider(
+      (vehicleType: _vehicleType!, packageId: _packageId!),
+    ));
+  }
+
+  int get _amountNow {
+    if (_vehicleType == null || _packageId == null) return 0;
+    return ref.read(selectedAmountProvider(
       (vehicleType: _vehicleType!, packageId: _packageId!),
     ));
   }
@@ -50,7 +59,7 @@ class _TypePackageScreenState extends ConsumerState<TypePackageScreen> {
       frontImageBytes: widget.frontImageBytes,
       vehicleType: _vehicleType!,
       packageId: _packageId!,
-      amount: _amount,
+      amount: _amountNow,
     );
     context.push('/worker/phone-paid', extra: {'draft': draft});
   }
@@ -109,29 +118,29 @@ class _TypePackageScreenState extends ConsumerState<TypePackageScreen> {
               const SizedBox(height: 12),
 
               if (_vehicleType == null)
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 12),
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
                   child: Text(
                     'Select a vehicle type above to see available packages.',
                     textAlign: TextAlign.center,
-                    style: TextStyle(color: WashTheme.textSecondary),
+                    style: TextStyle(color: context.wash.textSecondary),
                   ),
                 )
               else
                 packagesAsync.when(
-                  loading: () => const Center(
+                  loading: () => Center(
                     child: Padding(
-                      padding: EdgeInsets.symmetric(vertical: 24),
+                      padding: const EdgeInsets.symmetric(vertical: 24),
                       child: CircularProgressIndicator(
-                          color: WashTheme.accent),
+                          color: context.wash.accent),
                     ),
                   ),
-                  error: (e, _) => const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 12),
+                  error: (e, _) => Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
                     child: Text(
                       'Failed to load packages. Please try again.',
                       textAlign: TextAlign.center,
-                      style: TextStyle(color: WashTheme.danger),
+                      style: TextStyle(color: context.wash.danger),
                     ),
                   ),
                   data: (packages) {
@@ -140,13 +149,13 @@ class _TypePackageScreenState extends ConsumerState<TypePackageScreen> {
                             .contains(_vehicleType))
                         .toList();
                     if (filtered.isEmpty) {
-                      return const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 12),
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
                         child: Text(
                           'No packages available for this vehicle type.',
                           textAlign: TextAlign.center,
                           style:
-                              TextStyle(color: WashTheme.textSecondary),
+                              TextStyle(color: context.wash.textSecondary),
                         ),
                       );
                     }
@@ -180,21 +189,21 @@ class _TypePackageScreenState extends ConsumerState<TypePackageScreen> {
                 Container(
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
-                    color: WashTheme.surface,
+                    color: context.wash.surface,
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(
-                        color: WashTheme.accent.withValues(alpha: 0.4)),
+                        color: context.wash.accent.withValues(alpha: 0.4)),
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text('Amount',
+                      Text('Amount',
                           style: TextStyle(
-                              color: WashTheme.textSecondary, fontSize: 16)),
+                              color: context.wash.textSecondary, fontSize: 16)),
                       Text(
                         '₹$_amount',
-                        style: const TextStyle(
-                          color: WashTheme.accent,
+                        style: TextStyle(
+                          color: context.wash.accent,
                           fontSize: 36,
                           fontWeight: FontWeight.w800,
                         ),
@@ -239,11 +248,11 @@ class _VehicleTypeButton extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 16),
         decoration: BoxDecoration(
           color: selected
-              ? WashTheme.accent.withValues(alpha: 0.12)
-              : WashTheme.surface,
+              ? context.wash.accent.withValues(alpha: 0.12)
+              : context.wash.surface,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: selected ? WashTheme.accent : WashTheme.border,
+            color: selected ? context.wash.accent : context.wash.border,
             width: selected ? 2 : 1,
           ),
         ),
@@ -255,7 +264,7 @@ class _VehicleTypeButton extends StatelessWidget {
               label,
               textAlign: TextAlign.center,
               style: TextStyle(
-                color: selected ? WashTheme.accent : WashTheme.textPrimary,
+                color: selected ? context.wash.accent : context.wash.textPrimary,
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
               ),
@@ -291,11 +300,11 @@ class _PackageButton extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         decoration: BoxDecoration(
           color: selected
-              ? WashTheme.accent.withValues(alpha: 0.1)
-              : WashTheme.surface,
+              ? context.wash.accent.withValues(alpha: 0.1)
+              : context.wash.surface,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: selected ? WashTheme.accent : WashTheme.border,
+            color: selected ? context.wash.accent : context.wash.border,
             width: selected ? 2 : 1,
           ),
         ),
@@ -303,7 +312,7 @@ class _PackageButton extends StatelessWidget {
           children: [
             Icon(
               selected ? Icons.radio_button_checked : Icons.radio_button_off,
-              color: selected ? WashTheme.accent : WashTheme.textSecondary,
+              color: selected ? context.wash.accent : context.wash.textSecondary,
               size: 22,
             ),
             const SizedBox(width: 14),
@@ -314,7 +323,7 @@ class _PackageButton extends StatelessWidget {
                   Text(
                     label,
                     style: TextStyle(
-                      color: selected ? WashTheme.accent : WashTheme.textPrimary,
+                      color: selected ? context.wash.accent : context.wash.textPrimary,
                       fontSize: 15,
                       fontWeight: FontWeight.w700,
                     ),
@@ -324,8 +333,8 @@ class _PackageButton extends StatelessWidget {
                       padding: const EdgeInsets.only(top: 2),
                       child: Text(
                         description,
-                        style: const TextStyle(
-                          color: WashTheme.textSecondary,
+                        style: TextStyle(
+                          color: context.wash.textSecondary,
                           fontSize: 12,
                           height: 1.3,
                         ),
@@ -339,7 +348,7 @@ class _PackageButton extends StatelessWidget {
               Text(
                 '₹$amount',
                 style: TextStyle(
-                  color: selected ? WashTheme.accent : WashTheme.textSecondary,
+                  color: selected ? context.wash.accent : context.wash.textSecondary,
                   fontSize: 17,
                   fontWeight: FontWeight.w800,
                 ),

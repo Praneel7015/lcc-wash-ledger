@@ -2,6 +2,7 @@
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 
 import '../core/constants.dart';
 import '../models/customer.dart';
@@ -99,7 +100,15 @@ class FirestoreService {
   Future<Map<String, int>> loadRates() async {
     final snap = await _db.collection('rates').get();
     if (snap.docs.isEmpty) {
-      await seedDefaultRates();
+      // Only the owner may write /rates. A worker hitting an empty rate table
+      // used to crash here with permission-denied; fall back to the defaults
+      // so the wash can still be logged.
+      try {
+        await seedDefaultRates();
+      } on FirebaseException catch (e) {
+        debugPrint('loadRates: could not seed defaults (${e.code}) — '
+            'using in-memory defaults.');
+      }
       return defaultRates;
     }
     return {

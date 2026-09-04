@@ -10,8 +10,12 @@ import 'package:intl/intl.dart';
 import '../../core/constants.dart';
 import '../../core/theme.dart';
 import '../../models/visit.dart';
+import '../../providers/package_labels_provider.dart';
+import '../../providers/theme_provider.dart';
+import '../../providers/visits_provider.dart';
 import '../../services/providers.dart';
 import '../../widgets/payment_method_dialog.dart';
+import '../../widgets/theme_toggle_button.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
@@ -53,12 +57,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       initialDate: _selectedDate,
       firstDate: DateTime(2024),
       lastDate: DateTime.now(),
-      builder: (ctx, child) => Theme(
-        data: Theme.of(ctx).copyWith(
-          colorScheme: const ColorScheme.dark(primary: WashTheme.accent),
-        ),
-        child: child!,
-      ),
+      // No Theme override — the app theme already styles the picker for both
+      // light and dark. Forcing ColorScheme.dark here broke light mode.
     );
     if (picked != null) {
       setState(() {
@@ -70,11 +70,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final svc = ref.watch(firestoreServiceProvider);
-    final todayStream = svc.visitsForDay(_selectedDate);
+    // Keyed by midnight so the stream is cached per day instead of being
+    // rebuilt (and re-billed) on every keystroke in the search box.
+    final dayKey = startOfDay(_selectedDate);
+    final visitsAsync = ref.watch(visitsForDayProvider(dayKey));
 
     return Scaffold(
-      backgroundColor: WashTheme.bg,
+      backgroundColor: context.wash.bg,
       appBar: AppBar(
         toolbarHeight: 70,
         title: Center(
@@ -85,12 +87,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: WashTheme.accent.withValues(alpha: 0.15),
+                    color: context.wash.accent.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: const Icon(
+                  child: Icon(
                     Icons.local_car_wash_rounded,
-                    color: WashTheme.accent,
+                    color: context.wash.accent,
                     size: 24,
                   ),
                 ),
@@ -101,10 +103,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   children: [
                     Row(
                       children: [
-                        const Text(
+                        Text(
                           'LUXURY ',
                           style: TextStyle(
-                            color: WashTheme.textPrimary,
+                            color: context.wash.textPrimary,
                             fontSize: 18,
                             fontWeight: FontWeight.w900,
                             letterSpacing: 1.0,
@@ -113,7 +115,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                         Text(
                           'CAR CARE',
                           style: TextStyle(
-                            color: WashTheme.accent,
+                            color: context.wash.accent,
                             fontSize: 18,
                             fontWeight: FontWeight.w900,
                             letterSpacing: 1.0,
@@ -126,24 +128,24 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 6, vertical: 2),
                               decoration: BoxDecoration(
-                                color: WashTheme.success.withValues(alpha: 0.15),
+                                color: context.wash.success.withValues(alpha: 0.15),
                                 borderRadius: BorderRadius.circular(4),
                                 border: Border.all(
-                                    color: WashTheme.success
+                                    color: context.wash.success
                                         .withValues(alpha: 0.3)),
                               ),
-                              child: const Row(
+                              child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   CircleAvatar(
                                     radius: 3,
-                                    backgroundColor: WashTheme.success,
+                                    backgroundColor: context.wash.success,
                                   ),
-                                  SizedBox(width: 4),
+                                  const SizedBox(width: 4),
                                   Text(
                                     'LIVE',
                                     style: TextStyle(
-                                      color: WashTheme.success,
+                                      color: context.wash.success,
                                       fontSize: 10,
                                       fontWeight: FontWeight.w800,
                                     ),
@@ -160,10 +162,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                         children: [
                           GestureDetector(
                             onTap: _goToPrevDay,
-                            child: const Icon(
+                            child: Icon(
                               Icons.chevron_left_rounded,
                               size: 18,
-                              color: WashTheme.textSecondary,
+                              color: context.wash.textSecondary,
                             ),
                           ),
                           GestureDetector(
@@ -176,8 +178,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                               style: TextStyle(
                                 fontSize: 12,
                                 color: _isToday
-                                    ? WashTheme.textSecondary
-                                    : WashTheme.accent,
+                                    ? context.wash.textSecondary
+                                    : context.wash.accent,
                                 fontWeight: _isToday
                                     ? FontWeight.w400
                                     : FontWeight.w600,
@@ -190,8 +192,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                               Icons.chevron_right_rounded,
                               size: 18,
                               color: _isToday
-                                  ? WashTheme.textMuted
-                                  : WashTheme.textSecondary,
+                                  ? context.wash.textMuted
+                                  : context.wash.textSecondary,
                             ),
                           ),
                         ],
@@ -204,7 +206,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     icon: const Icon(Icons.analytics_outlined, size: 18),
                     label: const Text('Reports'),
                     style: TextButton.styleFrom(
-                      foregroundColor: WashTheme.textSecondary,
+                      foregroundColor: context.wash.textSecondary,
                     ),
                     onPressed: () => context.push('/owner/reports'),
                   ),
@@ -213,11 +215,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     icon: const Icon(Icons.tune_rounded, size: 18),
                     label: const Text('Rates'),
                     style: TextButton.styleFrom(
-                      foregroundColor: WashTheme.textSecondary,
+                      foregroundColor: context.wash.textSecondary,
                     ),
                     onPressed: () => context.push('/owner/rates'),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 4),
+                  const ThemeToggleButton(size: 20),
                   IconButton(
                     icon: const Icon(Icons.logout_rounded, size: 20),
                     tooltip: 'Sign Out',
@@ -229,11 +232,17 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 ] else ...[
                   PopupMenuButton<String>(
                     icon: const Icon(Icons.menu_rounded),
-                    color: WashTheme.surfaceCard,
+                    color: context.wash.surfaceCard,
                     tooltip: 'Menu',
                     onSelected: (val) async {
                       if (val == 'reports') context.push('/owner/reports');
                       if (val == 'rates') context.push('/owner/rates');
+                      if (val == 'theme') {
+                        ref.read(themeModeProvider.notifier).toggle(
+                              currentlyDark: Theme.of(context).brightness ==
+                                  Brightness.dark,
+                            );
+                      }
                       if (val == 'logout') {
                         await FirebaseAuth.instance.signOut();
                         if (context.mounted) context.go('/login');
@@ -260,6 +269,25 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                           ],
                         ),
                       ),
+                      PopupMenuItem(
+                        value: 'theme',
+                        child: Row(
+                          children: [
+                            Icon(
+                              Theme.of(context).brightness == Brightness.dark
+                                  ? Icons.light_mode_rounded
+                                  : Icons.dark_mode_rounded,
+                              size: 18,
+                            ),
+                            const SizedBox(width: 12),
+                            Text(
+                              Theme.of(context).brightness == Brightness.dark
+                                  ? 'Light Theme'
+                                  : 'Dark Theme',
+                            ),
+                          ],
+                        ),
+                      ),
                       const PopupMenuItem(
                         value: 'logout',
                         child: Row(
@@ -278,16 +306,17 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           ),
         ),
       ),
-      body: StreamBuilder<List<Visit>>(
-        stream: todayStream,
-        builder: (context, snap) {
-          if (snap.connectionState == ConnectionState.waiting) {
-            return const Center(
-              child: CircularProgressIndicator(color: WashTheme.accent),
-            );
-          }
-
-          final allVisits = snap.data ?? [];
+      body: visitsAsync.when(
+        loading: () => Center(
+          child: CircularProgressIndicator(color: context.wash.accent),
+        ),
+        // Previously a failed query fell through to `snap.data ?? []` and the
+        // dashboard silently showed zero revenue. Surface it instead.
+        error: (err, _) => _DashboardError(
+          error: err,
+          onRetry: () => ref.invalidate(visitsForDayProvider(dayKey)),
+        ),
+        data: (allVisits) {
           final visits = _searchQuery.trim().isEmpty
               ? allVisits
               : allVisits
@@ -321,9 +350,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                           padding: const EdgeInsets.symmetric(
                               horizontal: 4, vertical: 4),
                           decoration: BoxDecoration(
-                            color: WashTheme.surfaceCard,
+                            color: context.wash.surfaceCard,
                             borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: WashTheme.border),
+                            border: Border.all(color: context.wash.border),
                           ),
                           child: Row(
                             children: [
@@ -332,7 +361,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                 icon: const Icon(
                                     Icons.chevron_left_rounded,
                                     size: 22),
-                                color: WashTheme.textSecondary,
+                                color: context.wash.textSecondary,
                                 onPressed: _goToPrevDay,
                                 padding: EdgeInsets.zero,
                                 constraints: const BoxConstraints(
@@ -352,8 +381,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                           fontWeight: FontWeight.w800,
                                           letterSpacing: 1.2,
                                           color: _isToday
-                                              ? WashTheme.success
-                                              : WashTheme.accent,
+                                              ? context.wash.success
+                                              : context.wash.accent,
                                         ),
                                       ),
                                       const SizedBox(height: 2),
@@ -369,8 +398,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                               fontSize: 13,
                                               fontWeight: FontWeight.w700,
                                               color: _isToday
-                                                  ? WashTheme.textPrimary
-                                                  : WashTheme.accent,
+                                                  ? context.wash.textPrimary
+                                                  : context.wash.accent,
                                             ),
                                           ),
                                           const SizedBox(width: 4),
@@ -378,8 +407,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                             Icons.expand_more_rounded,
                                             size: 14,
                                             color: _isToday
-                                                ? WashTheme.textMuted
-                                                : WashTheme.accent,
+                                                ? context.wash.textMuted
+                                                : context.wash.accent,
                                           ),
                                         ],
                                       ),
@@ -393,7 +422,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                       icon: const Icon(
                                           Icons.chevron_right_rounded,
                                           size: 22),
-                                      color: WashTheme.textMuted,
+                                      color: context.wash.textMuted,
                                       onPressed: null,
                                       padding: EdgeInsets.zero,
                                       constraints: const BoxConstraints(
@@ -402,7 +431,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                   : TextButton(
                                       onPressed: _goToToday,
                                       style: TextButton.styleFrom(
-                                        foregroundColor: WashTheme.accent,
+                                        foregroundColor: context.wash.accent,
                                         padding: const EdgeInsets.symmetric(
                                             horizontal: 8),
                                         minimumSize: const Size(0, 36),
@@ -437,15 +466,15 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                               label: const Text('Close Day'),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor:
-                                    WashTheme.accent.withValues(alpha: 0.15),
-                                foregroundColor: WashTheme.accent,
+                                    context.wash.accent.withValues(alpha: 0.15),
+                                foregroundColor: context.wash.accent,
                                 elevation: 0,
                                 minimumSize: Size(narrow ? double.infinity : 0, 38),
                                 padding: const EdgeInsets.symmetric(
                                     horizontal: 14, vertical: 8),
                                 side: BorderSide(
                                     color:
-                                        WashTheme.accent.withValues(alpha: 0.3)),
+                                        context.wash.accent.withValues(alpha: 0.3)),
                                 textStyle: const TextStyle(
                                     fontSize: 13, fontWeight: FontWeight.w700),
                               ),
@@ -453,13 +482,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                             return Container(
                               padding: EdgeInsets.all(narrow ? 20 : 28),
                               decoration: BoxDecoration(
-                                color: WashTheme.surfaceCard,
+                                color: context.wash.surfaceCard,
                                 borderRadius: BorderRadius.circular(24),
-                                border: Border.all(color: WashTheme.border),
+                                border: Border.all(color: context.wash.border),
                                 gradient: LinearGradient(
                                   colors: [
-                                    WashTheme.surfaceCard,
-                                    WashTheme.surfaceHigh.withValues(alpha: 0.6),
+                                    context.wash.surfaceCard,
+                                    context.wash.surfaceHigh.withValues(alpha: 0.6),
                                   ],
                                   begin: Alignment.topLeft,
                                   end: Alignment.bottomRight,
@@ -478,8 +507,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                             : DateFormat('EEE, d MMM')
                                                 .format(_selectedDate)
                                                 .toUpperCase(),
-                                        style: const TextStyle(
-                                          color: WashTheme.textSecondary,
+                                        style: TextStyle(
+                                          color: context.wash.textSecondary,
                                           fontSize: 12,
                                           fontWeight: FontWeight.w700,
                                           letterSpacing: 1.2,
@@ -497,7 +526,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                       Text(
                                         '₹$totalRevenue',
                                         style: TextStyle(
-                                          color: WashTheme.accent,
+                                          color: context.wash.accent,
                                           fontSize: revenueFont,
                                           fontWeight: FontWeight.w900,
                                           letterSpacing: -1.5,
@@ -507,8 +536,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                       Flexible(
                                         child: Text(
                                           'across ${allVisits.length} wash${allVisits.length == 1 ? '' : 'es'}',
-                                          style: const TextStyle(
-                                            color: WashTheme.textSecondary,
+                                          style: TextStyle(
+                                            color: context.wash.textSecondary,
                                             fontSize: 14,
                                             fontWeight: FontWeight.w500,
                                           ),
@@ -524,25 +553,25 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                       _StatusPill(
                                         label: 'Cash',
                                         amount: '₹$cashRevenue',
-                                        color: WashTheme.success,
+                                        color: context.wash.success,
                                       ),
                                       _StatusPill(
                                         label: 'UPI',
                                         amount: '₹$upiRevenue',
-                                        color: WashTheme.accent,
+                                        color: context.wash.accent,
                                       ),
                                       if (unknownRevenue > 0)
                                         _StatusPill(
                                           label: 'Unknown',
                                           amount: '₹$unknownRevenue',
-                                          color: WashTheme.textSecondary,
+                                          color: context.wash.textSecondary,
                                         ),
                                       _StatusPill(
                                         label: 'Pending',
                                         amount: '₹$pendingRevenue',
                                         color: pendingRevenue > 0
-                                            ? WashTheme.danger
-                                            : WashTheme.textSecondary,
+                                            ? context.wash.danger
+                                            : context.wash.textSecondary,
                                       ),
                                     ],
                                   ),
@@ -640,21 +669,21 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                               style: const TextStyle(fontSize: 13),
                               decoration: InputDecoration(
                                 hintText: 'Search plate or phone…',
-                                hintStyle: const TextStyle(
+                                hintStyle: TextStyle(
                                     fontSize: 12,
-                                    color: WashTheme.textMuted),
-                                prefixIcon: const Icon(Icons.search,
+                                    color: context.wash.textMuted),
+                                prefixIcon: Icon(Icons.search,
                                     size: 18,
-                                    color: WashTheme.textSecondary),
+                                    color: context.wash.textSecondary),
                                 contentPadding:
                                     const EdgeInsets.symmetric(
                                         horizontal: 12, vertical: 8),
-                                fillColor: WashTheme.surfaceCard,
+                                fillColor: context.wash.surfaceCard,
                                 border: OutlineInputBorder(
                                   borderRadius:
                                       BorderRadius.circular(10),
-                                  borderSide: const BorderSide(
-                                      color: WashTheme.border),
+                                  borderSide: BorderSide(
+                                      color: context.wash.border),
                                 ),
                               ),
                             );
@@ -667,8 +696,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                     _isToday
                                         ? 'Live Log (${visits.length})'
                                         : 'Visit Log (${visits.length})',
-                                    style: const TextStyle(
-                                      color: WashTheme.textPrimary,
+                                    style: TextStyle(
+                                      color: context.wash.textPrimary,
                                       fontSize: 16,
                                       fontWeight: FontWeight.w800,
                                     ),
@@ -684,8 +713,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                   _isToday
                                       ? 'Live Vehicle Log (${visits.length})'
                                       : 'Vehicle Log (${visits.length})',
-                                  style: const TextStyle(
-                                    color: WashTheme.textPrimary,
+                                  style: TextStyle(
+                                    color: context.wash.textPrimary,
                                     fontSize: 16,
                                     fontWeight: FontWeight.w800,
                                   ),
@@ -714,21 +743,21 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                           padding: const EdgeInsets.symmetric(
                               horizontal: 14, vertical: 10),
                           decoration: BoxDecoration(
-                            color: WashTheme.accent.withValues(alpha: 0.08),
+                            color: context.wash.accent.withValues(alpha: 0.08),
                             borderRadius: BorderRadius.circular(10),
                             border: Border.all(
-                                color: WashTheme.accent.withValues(alpha: 0.25)),
+                                color: context.wash.accent.withValues(alpha: 0.25)),
                           ),
                           child: Row(
                             children: [
-                              const Icon(Icons.history_rounded,
-                                  size: 16, color: WashTheme.accent),
+                              Icon(Icons.history_rounded,
+                                  size: 16, color: context.wash.accent),
                               const SizedBox(width: 8),
                               Expanded(
                                 child: Text(
                                   'Viewing ${DateFormat('EEEE, d MMMM yyyy').format(_selectedDate)} — read only',
-                                  style: const TextStyle(
-                                    color: WashTheme.accent,
+                                  style: TextStyle(
+                                    color: context.wash.accent,
                                     fontSize: 12,
                                     fontWeight: FontWeight.w600,
                                   ),
@@ -741,16 +770,16 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                       horizontal: 10, vertical: 4),
                                   decoration: BoxDecoration(
                                     color:
-                                        WashTheme.accent.withValues(alpha: 0.15),
+                                        context.wash.accent.withValues(alpha: 0.15),
                                     borderRadius: BorderRadius.circular(6),
                                     border: Border.all(
-                                        color: WashTheme.accent
+                                        color: context.wash.accent
                                             .withValues(alpha: 0.35)),
                                   ),
-                                  child: const Text(
+                                  child: Text(
                                     'Back to Today',
                                     style: TextStyle(
-                                      color: WashTheme.accent,
+                                      color: context.wash.accent,
                                       fontSize: 11,
                                       fontWeight: FontWeight.w700,
                                     ),
@@ -777,12 +806,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                 width: 72,
                                 height: 72,
                                 decoration: BoxDecoration(
-                                  color: WashTheme.surfaceHigh,
+                                  color: context.wash.surfaceHigh,
                                   shape: BoxShape.circle,
-                                  border: Border.all(color: WashTheme.border),
+                                  border: Border.all(color: context.wash.border),
                                 ),
-                                child: const Icon(Icons.no_crash_rounded,
-                                    size: 36, color: WashTheme.textMuted),
+                                child: Icon(Icons.no_crash_rounded,
+                                    size: 36, color: context.wash.textMuted),
                               ),
                               const SizedBox(height: 16),
                               Text(
@@ -791,8 +820,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                         ? 'No vehicles logged today yet'
                                         : 'No vehicles were logged on this day')
                                     : 'No matching records for "$_searchQuery"',
-                                style: const TextStyle(
-                                  color: WashTheme.textPrimary,
+                                style: TextStyle(
+                                  color: context.wash.textPrimary,
                                   fontSize: 16,
                                   fontWeight: FontWeight.w600,
                                 ),
@@ -802,8 +831,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                 _isToday
                                     ? 'Vehicle scans logged by workers will stream here instantly.'
                                     : 'No wash records found for this date.',
-                                style: const TextStyle(
-                                  color: WashTheme.textMuted,
+                                style: TextStyle(
+                                  color: context.wash.textMuted,
                                   fontSize: 13,
                                 ),
                               ),
@@ -840,18 +869,18 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        backgroundColor: WashTheme.surfaceCard,
+        backgroundColor: context.wash.surfaceCard,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Text('Close Day & Send Email?'),
-        content: const Text(
+        content: Text(
           'This triggers the automated end-of-day summary email to all configured owner email addresses with today\'s complete breakdown.',
-          style: TextStyle(color: WashTheme.textSecondary, height: 1.4),
+          style: TextStyle(color: context.wash.textSecondary, height: 1.4),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel',
-                style: TextStyle(color: WashTheme.textSecondary)),
+            child: Text('Cancel',
+                style: TextStyle(color: context.wash.textSecondary)),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
@@ -867,16 +896,16 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       await ref.read(firestoreServiceProvider).triggerCloseDayEmail();
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+          SnackBar(
             content: Row(
               children: [
                 Icon(Icons.check_circle_rounded,
-                    color: WashTheme.success, size: 20),
-                SizedBox(width: 10),
-                Text('Report queued! Check your inbox shortly.'),
+                    color: context.wash.success, size: 20),
+                const SizedBox(width: 10),
+                const Text('Report queued! Check your inbox shortly.'),
               ],
             ),
-            backgroundColor: WashTheme.surfaceHigh,
+            backgroundColor: context.wash.surfaceHigh,
           ),
         );
       }
@@ -943,9 +972,9 @@ class _TypeMetricCard extends StatelessWidget {
       width: width,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: WashTheme.surfaceCard,
+        color: context.wash.surfaceCard,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: WashTheme.border),
+        border: Border.all(color: context.wash.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -955,20 +984,20 @@ class _TypeMetricCard extends StatelessWidget {
             children: [
               Text(
                 label,
-                style: const TextStyle(
-                  color: WashTheme.textSecondary,
+                style: TextStyle(
+                  color: context.wash.textSecondary,
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
                 ),
               ),
-              Icon(icon, size: 18, color: WashTheme.textMuted),
+              Icon(icon, size: 18, color: context.wash.textMuted),
             ],
           ),
           const SizedBox(height: 10),
           Text(
             count.toString(),
-            style: const TextStyle(
-              color: WashTheme.textPrimary,
+            style: TextStyle(
+              color: context.wash.textPrimary,
               fontSize: 26,
               fontWeight: FontWeight.w900,
               letterSpacing: -0.5,
@@ -1005,7 +1034,7 @@ class _VisitTile extends ConsumerWidget {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('Could not update payment: $e'),
-              backgroundColor: WashTheme.danger,
+              backgroundColor: context.wash.danger,
             ),
           );
         }
@@ -1023,7 +1052,7 @@ class _VisitTile extends ConsumerWidget {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Could not update payment: $e'),
-            backgroundColor: WashTheme.danger,
+            backgroundColor: context.wash.danger,
           ),
         );
       }
@@ -1040,11 +1069,12 @@ class _VisitTile extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final time = DateFormat('h:mm a').format(visit.createdAt);
+    final packageLabels = ref.watch(packageLabelsProvider);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       child: Material(
-        color: WashTheme.surfaceCard,
+        color: context.wash.surfaceCard,
         borderRadius: BorderRadius.circular(16),
         child: InkWell(
           borderRadius: BorderRadius.circular(16),
@@ -1053,7 +1083,7 @@ class _VisitTile extends ConsumerWidget {
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: WashTheme.border),
+              border: Border.all(color: context.wash.border),
             ),
             child: LayoutBuilder(builder: (context, bc) {
               final narrow = bc.maxWidth < 400;
@@ -1118,8 +1148,8 @@ class _VisitTile extends ConsumerWidget {
                     children: [
                       Text(
                         '₹${visit.amount}',
-                        style: const TextStyle(
-                          color: WashTheme.textPrimary,
+                        style: TextStyle(
+                          color: context.wash.textPrimary,
                           fontSize: 17,
                           fontWeight: FontWeight.w900,
                         ),
@@ -1132,21 +1162,21 @@ class _VisitTile extends ConsumerWidget {
                               horizontal: 8, vertical: 3),
                           decoration: BoxDecoration(
                             color: visit.paid
-                                ? WashTheme.success.withValues(alpha: 0.15)
-                                : WashTheme.danger.withValues(alpha: 0.15),
+                                ? context.wash.success.withValues(alpha: 0.15)
+                                : context.wash.danger.withValues(alpha: 0.15),
                             borderRadius: BorderRadius.circular(6),
                             border: Border.all(
                               color: visit.paid
-                                  ? WashTheme.success.withValues(alpha: 0.3)
-                                  : WashTheme.danger.withValues(alpha: 0.3),
+                                  ? context.wash.success.withValues(alpha: 0.3)
+                                  : context.wash.danger.withValues(alpha: 0.3),
                             ),
                           ),
                           child: Text(
                             _paidBadgeLabel(),
                             style: TextStyle(
                               color: visit.paid
-                                  ? WashTheme.success
-                                  : WashTheme.danger,
+                                  ? context.wash.success
+                                  : context.wash.danger,
                               fontSize: 10,
                               fontWeight: FontWeight.w800,
                               letterSpacing: 0.5,
@@ -1157,8 +1187,8 @@ class _VisitTile extends ConsumerWidget {
                     ],
                   ),
                   const SizedBox(width: 8),
-                  const Icon(Icons.chevron_right_rounded,
-                      color: WashTheme.textMuted, size: 20),
+                  Icon(Icons.chevron_right_rounded,
+                      color: context.wash.textMuted, size: 20),
                 ],
               );
 
@@ -1175,9 +1205,9 @@ class _VisitTile extends ConsumerWidget {
                       const SizedBox(width: 5),
                       Flexible(
                         child: Text(
-                          '${VehicleType.label(visit.vehicleType)} · ${WashPackage.label(visit.packageId)}',
-                          style: const TextStyle(
-                            color: WashTheme.textPrimary,
+                          '${VehicleType.label(visit.vehicleType)} · ${resolvePackageLabel(packageLabels, visit.packageId)}',
+                          style: TextStyle(
+                            color: context.wash.textPrimary,
                             fontSize: 13,
                             fontWeight: FontWeight.w700,
                           ),
@@ -1192,21 +1222,21 @@ class _VisitTile extends ConsumerWidget {
                     children: [
                       Text(
                         time,
-                        style: const TextStyle(
-                          color: WashTheme.textMuted,
+                        style: TextStyle(
+                          color: context.wash.textMuted,
                           fontSize: 12,
                         ),
                       ),
                       if (visit.phone != null &&
                           visit.phone!.isNotEmpty) ...[
-                        const Text('·',
+                        Text('·',
                             style: TextStyle(
-                                color: WashTheme.textMuted,
+                                color: context.wash.textMuted,
                                 fontSize: 12)),
                         Text(
                           visit.phone!,
-                          style: const TextStyle(
-                            color: WashTheme.textSecondary,
+                          style: TextStyle(
+                            color: context.wash.textSecondary,
                             fontSize: 12,
                           ),
                         ),
@@ -1245,6 +1275,70 @@ class _VisitTile extends ConsumerWidget {
                 ],
               );
             }),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Shown when the day's visit stream fails (offline, permission denied, a
+/// missing index). Previously these errors were swallowed and the dashboard
+/// rendered as if the day had zero washes.
+class _DashboardError extends StatelessWidget {
+  final Object error;
+  final VoidCallback onRetry;
+
+  const _DashboardError({required this.error, required this.onRetry});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 420),
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 72,
+                height: 72,
+                decoration: BoxDecoration(
+                  color: context.wash.danger.withValues(alpha: 0.12),
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                      color: context.wash.danger.withValues(alpha: 0.3)),
+                ),
+                child: Icon(Icons.cloud_off_rounded,
+                    size: 34, color: context.wash.danger),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                "Couldn't load today's washes",
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: context.wash.textPrimary,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                '$error',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: context.wash.textMuted, fontSize: 12),
+              ),
+              const SizedBox(height: 20),
+              OutlinedButton.icon(
+                onPressed: onRetry,
+                icon: const Icon(Icons.refresh_rounded, size: 18),
+                label: const Text('Try again'),
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size(160, 44),
+                ),
+              ),
+            ],
           ),
         ),
       ),
