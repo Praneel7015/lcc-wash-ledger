@@ -58,6 +58,7 @@ function labelType(t: string): string {
       hatch_sedan: "Hatch / Sedan",
       suv: "SUV",
       bike: "Bike",
+      other: "Other",
     }[t] ?? t
   );
 }

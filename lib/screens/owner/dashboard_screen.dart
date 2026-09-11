@@ -613,6 +613,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                       width: (constraints.maxWidth - 10) / 2,
                                     ),
                                     _TypeMetricCard(
+                                      label: 'Other',
+                                      count: countByType[VehicleType.other] ?? 0,
+                                      icon: Icons.local_shipping_rounded,
+                                      width: (constraints.maxWidth - 10) / 2,
+                                    ),
+                                    _TypeMetricCard(
                                       label: 'Total Washed',
                                       count: allVisits.length,
                                       icon: Icons.local_car_wash_rounded,
@@ -644,6 +650,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                       label: 'Two Wheeler',
                                       count: countByType[VehicleType.bike] ?? 0,
                                       icon: Icons.two_wheeler_rounded,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: _TypeMetricCard(
+                                      label: 'Other',
+                                      count: countByType[VehicleType.other] ?? 0,
+                                      icon: Icons.local_shipping_rounded,
                                     ),
                                   ),
                                   const SizedBox(width: 12),

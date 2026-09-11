@@ -4,8 +4,9 @@ class VehicleType {
   static const String hatchSedan = 'hatch_sedan';
   static const String suv = 'suv';
   static const String bike = 'bike';
+  static const String other = 'other';
 
-  static const List<String> all = [hatchSedan, suv, bike];
+  static const List<String> all = [hatchSedan, suv, bike, other];
 
   static String label(String type) {
     switch (type) {
@@ -15,6 +16,8 @@ class VehicleType {
         return 'SUV';
       case bike:
         return 'Bike';
+      case other:
+        return 'Other';
       default:
         return type;
     }
@@ -28,6 +31,8 @@ class VehicleType {
         return '🚙';
       case bike:
         return '🏍';
+      case other:
+        return '🚚';
       default:
         return '🚗';
     }
@@ -118,6 +123,11 @@ Map<String, int> get defaultRates => {
       '${VehicleType.suv}__${WashPackage.detailing}': 1999,
       // Bike
       '${VehicleType.bike}__${WashPackage.bikeWash}': 64,
+      // Other (Truck / Lorry / Commercial)
+      '${VehicleType.other}__${WashPackage.exterior}': 499,
+      '${VehicleType.other}__${WashPackage.full}': 699,
+      '${VehicleType.other}__${WashPackage.underbody}': 899,
+      '${VehicleType.other}__${WashPackage.detailing}': 2499,
     };
 
 String rateKey(String vehicleType, String packageId) =>
