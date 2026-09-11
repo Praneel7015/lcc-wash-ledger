@@ -91,25 +91,33 @@ class _TypePackageScreenState extends ConsumerState<TypePackageScreen> {
               Text('Vehicle type',
                   style: Theme.of(context).textTheme.titleLarge),
               const SizedBox(height: 12),
-              Row(
-                children: VehicleType.all.map((type) {
-                  final selected = _vehicleType == type;
-                  return Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: _VehicleTypeButton(
-                        label: VehicleType.label(type),
-                        emoji: VehicleType.emoji(type),
-                        selected: selected,
-                        onTap: () => setState(() {
-                          _vehicleType = type;
-                          // Reset package when switching vehicle type
-                          _packageId = null;
-                        }),
-                      ),
+              Column(
+                children: [
+                  for (var i = 0; i < VehicleType.all.length; i += 2) ...[
+                    if (i > 0) const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        for (var j = i; j < i + 2 && j < VehicleType.all.length; j++) ...[
+                          if (j > i) const SizedBox(width: 10),
+                          Expanded(
+                            child: _VehicleTypeButton(
+                              label: VehicleType.label(VehicleType.all[j]),
+                              emoji: VehicleType.emoji(VehicleType.all[j]),
+                              selected: _vehicleType == VehicleType.all[j],
+                              onTap: () => setState(() {
+                                _vehicleType = VehicleType.all[j];
+                                // Reset package when switching vehicle type
+                                _packageId = null;
+                              }),
+                            ),
+                          ),
+                        ],
+                        if ((i + 1) >= VehicleType.all.length && VehicleType.all.length.isOdd)
+                          const Expanded(child: SizedBox()),
+                      ],
                     ),
-                  );
-                }).toList(),
+                  ],
+                ],
               ),
 
               const SizedBox(height: 28),

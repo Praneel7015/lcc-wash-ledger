@@ -18,31 +18,35 @@ const rates = {
   'suv__underbody':         { vehicleType: 'suv',         packageId: 'underbody',  amountRupees: 499  },
   'suv__detailing':         { vehicleType: 'suv',         packageId: 'detailing',  amountRupees: 1999 },
   'bike__bike_wash':        { vehicleType: 'bike',        packageId: 'bike_wash',  amountRupees: 64   },
+  'other__exterior':        { vehicleType: 'other',       packageId: 'exterior',   amountRupees: 499  },
+  'other__full':            { vehicleType: 'other',       packageId: 'full',       amountRupees: 699  },
+  'other__underbody':       { vehicleType: 'other',       packageId: 'underbody',  amountRupees: 899  },
+  'other__detailing':       { vehicleType: 'other',       packageId: 'detailing',  amountRupees: 2499 },
 };
 
 const packages = {
   'exterior': {
     label: 'Express Exterior Wash',
     description: "A fast rinse and shine when you're short on time.",
-    vehicleTypes: ['hatch_sedan', 'suv'],
+    vehicleTypes: ['hatch_sedan', 'suv', 'other'],
     order: 1,
   },
   'full': {
     label: 'Exterior + Interior Wash',
     description: 'Full clean, inside and out.',
-    vehicleTypes: ['hatch_sedan', 'suv'],
+    vehicleTypes: ['hatch_sedan', 'suv', 'other'],
     order: 2,
   },
   'underbody': {
     label: 'Exterior + Interior + Under Body',
     description: 'Full clean + vacuum, under body wash & tyre polish.',
-    vehicleTypes: ['hatch_sedan', 'suv'],
+    vehicleTypes: ['hatch_sedan', 'suv', 'other'],
     order: 3,
   },
   'detailing': {
     label: 'Full Detailing',
     description: 'Deep clean, shampoo, wax, tyre shine — like new.',
-    vehicleTypes: ['hatch_sedan', 'suv'],
+    vehicleTypes: ['hatch_sedan', 'suv', 'other'],
     order: 4,
   },
   'bike_wash': {
