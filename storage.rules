@@ -14,17 +14,19 @@ service firebase.storage {
     // Workers upload plate photos to plates/{plate}/{filename}.
     // `allow create` (not write) prevents overwriting an already-uploaded
     // photo. Owners are intentionally excluded — plate photos are worker-only.
+    // Explicit content-type allowlist blocks SVG and other active content types
+    // that could be stored XSS vectors when rendered by a browser.
     match /plates/{plate}/{filename} {
       allow create: if isWorker()
         && request.resource.size < 8 * 1024 * 1024
-        && request.resource.contentType.matches('image/.*');
+        && request.resource.contentType in ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
     }
 
     // Workers upload front photos to fronts/{plate}/{filename}.
     match /fronts/{plate}/{filename} {
       allow create: if isWorker()
         && request.resource.size < 8 * 1024 * 1024
-        && request.resource.contentType.matches('image/.*');
+        && request.resource.contentType in ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
     }
   }
 }
