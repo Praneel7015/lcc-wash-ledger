@@ -39,6 +39,17 @@ jobs:
       - name: Build Flutter web (release)
         run: flutter build web --release --no-tree-shake-icons
 
+      # Deploy Firestore rules, Storage rules, and Hosting in one command so
+      # all three are always in sync with the code that references them.
+      # The hosting-deploy action below only handles Hosting; rules changes
+      # would otherwise silently stay on the old version in production.
+      - name: Deploy Firestore & Storage rules
+        uses: w9jds/firebase-action@master
+        with:
+          args: deploy --only firestore:rules,storage --project wash-ledgar
+        env:
+          GCP_SA_KEY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+
       - name: Deploy to Firebase Hosting
         uses: FirebaseExtended/action-hosting-deploy@v0
         with:
