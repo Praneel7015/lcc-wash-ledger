@@ -75,6 +75,25 @@ class Visit {
         'frontPhotoUrl': frontPhotoUrl,
       };
 
+  /// Like [toFirestore] but uses a Firestore server timestamp instead of a
+  /// client-supplied [DateTime]. Call this when creating a new visit so the
+  /// stored timestamp reflects the authoritative server clock, not the device
+  /// clock (which can be wrong due to timezone misconfiguration or drift).
+  Map<String, dynamic> toFirestoreCreate() => {
+        'plate': plate,
+        'phone': phone,
+        'vehicleType': vehicleType,
+        'packageId': packageId,
+        'amount': amount,
+        'paid': paid,
+        if (paymentMethod != null) 'paymentMethod': paymentMethod,
+        'voided': voided,
+        'workerId': workerId,
+        'createdAt': FieldValue.serverTimestamp(),
+        'platePhotoUrl': platePhotoUrl,
+        'frontPhotoUrl': frontPhotoUrl,
+      };
+
   Visit copyWith({
     String? phone,
     String? vehicleType,

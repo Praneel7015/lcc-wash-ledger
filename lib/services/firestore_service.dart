@@ -21,6 +21,36 @@ class FirestoreService {
   /// instead of a second one. Deliberately not a plain `set`: that counts as an
   /// update, and firestore.rules only lets a worker change `paid` and
   /// `paymentMethod` on a visit that already exists, so a retry would be denied.
+  /// Writes a visit using a server timestamp for `createdAt`. An empty
+  /// [Visit.id] gets a generated document id.
+  ///
+  /// Uses the same create-if-absent transaction as [saveVisit] for idempotency.
+  Future<String> saveVisitCreate(Visit visit) async {
+    if (visit.id.isEmpty) {
+      final ref = await _db.collection('visits').add(visit.toFirestoreCreate());
+      return ref.id;
+    }
+    final ref = _db.collection('visits').doc(visit.id);
+    await _db.runTransaction<void>((tx) async {
+      final snap = await tx.get(ref);
+      if (snap.exists) return;
+      tx.set(ref, visit.toFirestoreCreate());
+    });
+    return ref.id;
+  }
+
+  /// Updates the photo URLs on an existing visit document after upload.
+  Future<void> updateVisitPhotos(
+    String id,
+    String platePhotoUrl,
+    String frontPhotoUrl,
+  ) {
+    return _db.collection('visits').doc(id).update({
+      'platePhotoUrl': platePhotoUrl,
+      'frontPhotoUrl': frontPhotoUrl,
+    });
+  }
+
   Future<String> saveVisit(Visit visit) async {
     if (visit.id.isEmpty) {
       final ref = await _db.collection('visits').add(visit.toFirestore());

@@ -1047,7 +1047,7 @@ class _VisitTile extends ConsumerWidget {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Could not update payment: $e'),
+              content: const Text('Could not update payment. Check connection and try again.'),
               backgroundColor: context.wash.danger,
             ),
           );
@@ -1065,7 +1065,7 @@ class _VisitTile extends ConsumerWidget {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Could not update payment: $e'),
+            content: const Text('Could not update payment. Check connection and try again.'),
             backgroundColor: context.wash.danger,
           ),
         );

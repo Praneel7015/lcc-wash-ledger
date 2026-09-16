@@ -69,7 +69,7 @@ jobs:
       # Catch analysis failures before spending ~5 minutes on a release build
       # that would ship broken. Infos do not block; warnings and errors do.
       - name: Analyze
-        run: flutter analyze --no-fatal-infos
+        run: flutter analyze --no-fatal-infos --fatal-warnings
 
       - name: Build release APKs (split per ABI)
         run: flutter build apk --release --split-per-abi
@@ -85,3 +85,7 @@ jobs:
             build/app/outputs/flutter-apk/app-x86_64-release.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Cleanup secrets from disk
+        if: always()
+        run: rm -f android/app/google-services.json

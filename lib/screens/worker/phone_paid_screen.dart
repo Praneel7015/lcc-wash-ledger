@@ -82,7 +82,31 @@ class _PhonePaidScreenState extends ConsumerState<PhonePaidScreen> {
         }
       }
 
-      // Upload both photos in parallel
+      // Step 1: Write the visit document first (no photo URLs yet).
+      //   - Uses FieldValue.serverTimestamp() so createdAt is authoritative
+      //     even if the device clock is wrong or in the wrong timezone.
+      //   - Idempotent: the transaction inside saveVisitCreate is a no-op if
+      //     the same _visitId was already written (retry safety).
+      final visit = Visit(
+        id: _visitId,
+        plate: widget.draft.plate,
+        phone: phone.isEmpty ? null : phone,
+        vehicleType: widget.draft.vehicleType,
+        packageId: widget.draft.packageId,
+        amount: widget.draft.amount,
+        paid: _paid,
+        paymentMethod: _paid ? _paymentMethod : null,
+        workerId: uid,
+        createdAt: DateTime.now(), // only used locally; server ts is written
+        platePhotoUrl: null,
+        frontPhotoUrl: null,
+      );
+      await svc.saveVisitCreate(visit);
+
+      // Step 2: Upload both photos in parallel.
+      //   - If this fails the visit document already exists with null URLs.
+      //     The owner can see it and add photos manually if needed, but the
+      //     wash record is never lost due to a network drop mid-upload.
       final results = await Future.wait<String>([
         storage.uploadPhoto(
           bytes: Uint8List.fromList(widget.draft.plateImageBytes),
@@ -96,22 +120,8 @@ class _PhonePaidScreenState extends ConsumerState<PhonePaidScreen> {
         ),
       ]);
 
-      final visit = Visit(
-        id: _visitId,
-        plate: widget.draft.plate,
-        phone: phone.isEmpty ? null : phone,
-        vehicleType: widget.draft.vehicleType,
-        packageId: widget.draft.packageId,
-        amount: widget.draft.amount,
-        paid: _paid,
-        paymentMethod: _paid ? _paymentMethod : null,
-        workerId: uid,
-        createdAt: DateTime.now(),
-        platePhotoUrl: results[0],
-        frontPhotoUrl: results[1],
-      );
-
-      await svc.saveVisit(visit);
+      // Step 3: Patch the photo URLs onto the already-saved document.
+      await svc.updateVisitPhotos(_visitId, results[0], results[1]);
       // upsertCustomer is non-critical — a failure must not abort the
       // already-saved wash record. Log and continue.
       try {

@@ -6,6 +6,11 @@
 // dashboard and could read every visit and the day's revenue — and an owner on
 // an Android phone was dropped into the worker capture flow with no way to
 // reach their own dashboard.
+//
+// GoRouter is created once per app lifetime inside `routerProvider`. Auth and
+// role changes are surfaced as a `RouterNotifier` (a ChangeNotifier) so the
+// router's redirect re-evaluates without tearing down and recreating the router
+// — which would reset the navigation stack mid-flow.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -37,37 +42,67 @@ const _workerHome = '/worker/capture-plate';
 String? _requireExtra(GoRouterState state) =>
     state.extra is Map<String, dynamic> ? null : _workerHome;
 
+// ── RouterNotifier ────────────────────────────────────────────────────────────
+
+/// Bridges Riverpod auth/role state into a [ChangeNotifier] that the single
+/// [GoRouter] instance listens to for redirect re-evaluation.
+///
+/// This pattern ensures GoRouter is created **once** for the lifetime of the
+/// app.  Previously, `routerProvider` watched autoDispose providers inline and
+/// returned `GoRouter(...)` directly — meaning every auth state change caused
+/// the entire router to be replaced, resetting the navigation stack mid-flow.
+class _RouterNotifier extends ChangeNotifier {
+  _RouterNotifier(this._ref) {
+    // Listen to both providers and notify the router whenever either changes.
+    _ref.listen(authStateProvider, (_, __) => notifyListeners());
+    _ref.listen(userRoleProvider, (_, __) => notifyListeners());
+    _ref.listen(washSessionProvider, (_, __) => notifyListeners());
+  }
+
+  final Ref _ref;
+
+  String? redirect(BuildContext context, GoRouterState state) {
+    final authState = _ref.read(authStateProvider);
+    final roleAsync = _ref.read(userRoleProvider);
+
+    // Still resolving the session — stay put rather than flashing /login.
+    if (authState.isLoading) return null;
+
+    final user = authState.valueOrNull;
+    final location = state.matchedLocation;
+    final isLoggingIn = location == '/login';
+
+    if (user == null) return isLoggingIn ? null : '/login';
+
+    // Signed in, but the role claim has not arrived yet. Hold on the current
+    // screen; this redirect re-runs as soon as the claim resolves.
+    if (roleAsync.isLoading) return null;
+
+    final isOwner = roleAsync.valueOrNull == UserRole.owner;
+    final home = isOwner ? _ownerHome : _workerHome;
+
+    if (isLoggingIn) return home;
+
+    // Owner-only area. Workers are sent back to their own flow.
+    if (location.startsWith('/owner') && !isOwner) return _workerHome;
+
+    return null;
+  }
+}
+
+// ── Provider ──────────────────────────────────────────────────────────────────
+
+/// A [GoRouter] that is created once and reuses a [ChangeNotifier] for
+/// redirect re-evaluation, so navigation state is never torn down on auth
+/// changes.
 final routerProvider = Provider<GoRouter>((ref) {
-  final authState = ref.watch(authStateProvider);
-  final roleAsync = ref.watch(userRoleProvider);
+  final notifier = _RouterNotifier(ref);
   final washSession = ref.watch(washSessionProvider);
 
-  return GoRouter(
+  final router = GoRouter(
     initialLocation: '/login',
-    redirect: (context, state) {
-      // Still resolving the session — stay put rather than flashing /login.
-      if (authState.isLoading) return null;
-
-      final user = authState.valueOrNull;
-      final location = state.matchedLocation;
-      final isLoggingIn = location == '/login';
-
-      if (user == null) return isLoggingIn ? null : '/login';
-
-      // Signed in, but the role claim has not arrived yet. Hold on the current
-      // screen; this redirect re-runs as soon as the claim resolves.
-      if (roleAsync.isLoading) return null;
-
-      final isOwner = roleAsync.valueOrNull == UserRole.owner;
-      final home = isOwner ? _ownerHome : _workerHome;
-
-      if (isLoggingIn) return home;
-
-      // Owner-only area. Workers are sent back to their own flow.
-      if (location.startsWith('/owner') && !isOwner) return _workerHome;
-
-      return null;
-    },
+    refreshListenable: notifier,
+    redirect: notifier.redirect,
     errorBuilder: (context, state) => _RouteNotFound(location: state.uri.path),
     routes: [
       GoRoute(
@@ -152,6 +187,11 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
     ],
   );
+
+  // Dispose the notifier when the provider is disposed (i.e. app shutdown).
+  ref.onDispose(notifier.dispose);
+
+  return router;
 });
 
 /// Replaces go_router's default red error screen for unknown URLs.
