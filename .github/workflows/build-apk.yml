@@ -25,6 +25,13 @@ jobs:
         id: version
         run: |
           TAG="${GITHUB_REF_NAME}"
+          # Guard: workflow_dispatch sets GITHUB_REF_NAME to the branch name,
+          # not a semver tag. Writing "version: main+1" into pubspec.yaml
+          # is not valid semver and aborts flutter pub get on the next step.
+          if [[ ! "${TAG}" =~ ^v[0-9]+\.[0-9]+\.[0-9] ]]; then
+            echo "::error::Build APK must be triggered by a v* tag (got: ${TAG}). Run: git tag vX.Y.Z && git push origin vX.Y.Z"
+            exit 1
+          fi
           VERSION="${TAG#v}"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
@@ -75,5 +82,6 @@ jobs:
           files: |
             build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
             build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk
+            build/app/outputs/flutter-apk/app-x86_64-release.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,21 +1,28 @@
 rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
-    // Any authenticated user (worker or owner) can read all photos
+
+    function isWorker() {
+      return request.auth != null && request.auth.token.role == 'worker';
+    }
+
+    // Any authenticated user (worker or owner) can read all photos.
     match /{allPaths=**} {
       allow read: if request.auth != null;
     }
 
-    // Workers upload plate photos to plates/{plate}/{filename}
+    // Workers upload plate photos to plates/{plate}/{filename}.
+    // `allow create` (not write) prevents overwriting an already-uploaded
+    // photo. Owners are intentionally excluded — plate photos are worker-only.
     match /plates/{plate}/{filename} {
-      allow write: if request.auth != null
+      allow create: if isWorker()
         && request.resource.size < 8 * 1024 * 1024
         && request.resource.contentType.matches('image/.*');
     }
 
-    // Workers upload front photos to fronts/{plate}/{filename}
+    // Workers upload front photos to fronts/{plate}/{filename}.
     match /fronts/{plate}/{filename} {
-      allow write: if request.auth != null
+      allow create: if isWorker()
         && request.resource.size < 8 * 1024 * 1024
         && request.resource.contentType.matches('image/.*');
     }

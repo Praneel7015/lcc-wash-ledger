@@ -53,12 +53,20 @@ class _PhonePaidScreenState extends ConsumerState<PhonePaidScreen> {
   }
 
   Future<void> _save() async {
-    // The button is disabled via _saving, but setState only *schedules* a
-    // rebuild — it does not perform one. A fast double-tap delivers both taps
-    // to the old widget, whose onPressed is still live, so _save() ran twice
-    // and saveVisit() (.add()) wrote a second visit plus a second pair of
-    // photo uploads. Re-entry has to be blocked here, not just in the UI.
     if (_saving) return;
+
+    // Validate phone before doing any network work.
+    final phone = _phoneCtrl.text.trim();
+    if (phone.isNotEmpty && phone.length != 10) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Phone number must be exactly 10 digits.'),
+          backgroundColor: context.wash.danger,
+        ),
+      );
+      return;
+    }
+
     setState(() => _saving = true);
     try {
       final svc = ref.read(firestoreServiceProvider);
@@ -91,7 +99,7 @@ class _PhonePaidScreenState extends ConsumerState<PhonePaidScreen> {
       final visit = Visit(
         id: _visitId,
         plate: widget.draft.plate,
-        phone: _phoneCtrl.text.trim().isEmpty ? null : _phoneCtrl.text.trim(),
+        phone: phone.isEmpty ? null : phone,
         vehicleType: widget.draft.vehicleType,
         packageId: widget.draft.packageId,
         amount: widget.draft.amount,
@@ -104,7 +112,13 @@ class _PhonePaidScreenState extends ConsumerState<PhonePaidScreen> {
       );
 
       await svc.saveVisit(visit);
-      await svc.upsertCustomer(widget.draft.plate, visit.phone);
+      // upsertCustomer is non-critical — a failure must not abort the
+      // already-saved wash record. Log and continue.
+      try {
+        await svc.upsertCustomer(widget.draft.plate, visit.phone);
+      } catch (e) {
+        debugPrint('upsertCustomer failed (non-fatal): $e');
+      }
 
       if (mounted) {
         _showSuccessAndReset();
@@ -112,7 +126,10 @@ class _PhonePaidScreenState extends ConsumerState<PhonePaidScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Save failed: $e'), backgroundColor: context.wash.danger),
+          SnackBar(
+            content: const Text('Could not save wash. Check connection and try again.'),
+            backgroundColor: context.wash.danger,
+          ),
         );
       }
     } finally {
@@ -124,7 +141,12 @@ class _PhonePaidScreenState extends ConsumerState<PhonePaidScreen> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (_) => AlertDialog(
+      builder: (_) => PopScope(
+        // Prevent the Android hardware back button from dismissing the dialog
+        // without incrementing washSessionProvider — which would leave the
+        // capture screen with stale OCR/photo state from the previous wash.
+        canPop: false,
+        child: AlertDialog(
         backgroundColor: context.wash.surface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         content: Column(
@@ -160,6 +182,7 @@ class _PhonePaidScreenState extends ConsumerState<PhonePaidScreen> {
               child: const Text('New wash'),
             ),
           ],
+        ),
         ),
       ),
     );

@@ -4,7 +4,6 @@
 // so the app starts on ThemeMode.system and settles onto the saved choice a
 // frame or two later; that avoids blocking first paint on disk I/O.
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';

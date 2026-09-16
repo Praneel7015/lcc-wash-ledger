@@ -50,7 +50,7 @@ class TodayWashesScreen extends ConsumerWidget {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Update failed: $e'),
+              content: const Text('Could not update payment. Try again.'),
               backgroundColor: context.wash.danger,
             ),
           );
@@ -104,7 +104,7 @@ class TodayWashesScreen extends ConsumerWidget {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Update failed: $e'),
+            content: const Text('Could not update payment. Try again.'),
             backgroundColor: context.wash.danger,
           ),
         );
@@ -147,7 +147,7 @@ class TodayWashesScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  '$err',
+                  'Check your connection and tap retry.',
                   textAlign: TextAlign.center,
                   style: TextStyle(color: context.wash.textMuted, fontSize: 12),
                 ),

@@ -39,16 +39,22 @@ class Visit {
     final d = doc.data() as Map<String, dynamic>;
     return Visit(
       id: doc.id,
-      plate: d['plate'] as String,
+      // Null-safe casts: a malformed or partially-migrated Firestore document
+      // must not crash the entire stream that renders the visit list.
+      plate: (d['plate'] as String?) ?? '',
       phone: d['phone'] as String?,
-      vehicleType: d['vehicleType'] as String,
-      packageId: d['packageId'] as String,
-      amount: (d['amount'] as num).toInt(),
+      vehicleType: (d['vehicleType'] as String?) ?? VehicleType.other,
+      packageId: (d['packageId'] as String?) ?? '',
+      amount: (d['amount'] as num?)?.toInt() ?? 0,
       paid: d['paid'] as bool? ?? false,
       paymentMethod: d['paymentMethod'] as String?,
       voided: d['voided'] as bool? ?? false,
       workerId: d['workerId'] as String?,
-      createdAt: (d['createdAt'] as Timestamp).toDate(),
+      // A missing createdAt field must not crash the stream — use epoch as a
+      // sentinel so the document sorts to the bottom but remains visible.
+      createdAt: d['createdAt'] != null
+          ? (d['createdAt'] as Timestamp).toDate()
+          : DateTime.fromMillisecondsSinceEpoch(0),
       platePhotoUrl: d['platePhotoUrl'] as String?,
       frontPhotoUrl: d['frontPhotoUrl'] as String?,
     );

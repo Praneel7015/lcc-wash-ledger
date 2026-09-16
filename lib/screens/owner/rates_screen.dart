@@ -2,6 +2,7 @@
 // Tab 1 (Rates): vehicle type × package grid loaded dynamically from Firestore.
 // Tab 2 (Packages): add / edit / delete packages with full CRUD.
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -96,32 +97,57 @@ class _RatesTabState extends ConsumerState<_RatesTab> {
   }
 
   Future<void> _load() async {
-    final svc = ref.read(firestoreServiceProvider);
-    final results = await Future.wait([svc.loadRates(), svc.loadPackages()]);
-    final rates = results[0] as Map<String, int>;
-    final packages = results[1] as List<Map<String, dynamic>>;
+    if (!mounted) return;
+    setState(() => _loading = true);
+    try {
+      final svc = ref.read(firestoreServiceProvider);
+      final results = await Future.wait([svc.loadRates(), svc.loadPackages()]);
+      final rates = results[0] as Map<String, int>;
+      final packages = results[1] as List<Map<String, dynamic>>;
 
-    final controllers = <String, TextEditingController>{};
-    for (final vt in VehicleType.all) {
-      for (final pkg in packages) {
-        final key = rateKey(vt, pkg['id'] as String);
-        controllers[key] =
-            TextEditingController(text: (rates[key] ?? 0).toString());
+      final controllers = <String, TextEditingController>{};
+      for (final vt in VehicleType.all) {
+        for (final pkg in packages) {
+          final key = rateKey(vt, pkg['id'] as String);
+          controllers[key] =
+              TextEditingController(text: (rates[key] ?? 0).toString());
+        }
       }
-    }
-    if (mounted) {
-      setState(() {
-        _controllers = controllers;
-        _packages = packages;
-        _loading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _controllers = controllers;
+          _packages = packages;
+          _loading = false;
+        });
+      } else {
+        // Widget was disposed while awaiting — clean up orphaned controllers.
+        for (final c in controllers.values) {
+          c.dispose();
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _loading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Could not load rates. Check connection and try again.'),
+            backgroundColor: context.wash.danger,
+            action: SnackBarAction(
+              label: 'Retry',
+              onPressed: _load,
+            ),
+          ),
+        );
+      }
     }
   }
 
   Future<void> _save() async {
     setState(() => _saving = true);
     try {
-      final svc = ref.read(firestoreServiceProvider);
+      // Batch all rate writes into a single atomic commit so a network drop
+      // mid-save can't leave the table in a partially-inconsistent state.
+      final batch = FirebaseFirestore.instance.batch();
       for (final vt in VehicleType.all) {
         for (final pkg in _packages) {
           final pkgId = pkg['id'] as String;
@@ -129,9 +155,15 @@ class _RatesTabState extends ConsumerState<_RatesTab> {
           if (!vehicleTypes.contains(vt)) continue;
           final key = rateKey(vt, pkgId);
           final val = int.tryParse(_controllers[key]?.text ?? '0') ?? 0;
-          await svc.setRate(vt, pkgId, val);
+          final ref = FirebaseFirestore.instance.collection('rates').doc(key);
+          batch.set(ref, {
+            'vehicleType': vt,
+            'packageId': pkgId,
+            'amountRupees': val,
+          });
         }
       }
+      await batch.commit();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -144,6 +176,15 @@ class _RatesTabState extends ConsumerState<_RatesTab> {
               ],
             ),
             backgroundColor: context.wash.surfaceHigh,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Could not save rates. Check connection and try again.'),
+            backgroundColor: context.wash.danger,
           ),
         );
       }

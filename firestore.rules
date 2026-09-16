@@ -15,10 +15,23 @@ service cloud.firestore {
       return isSignedIn() && request.auth.token.role == 'worker';
     }
 
-    // Any authenticated user (worker or owner) can read/write visits
+    // ── Visits ───────────────────────────────────────────────────────────────
+
     match /visits/{id} {
       allow read: if isSignedIn();
-      allow create: if isWorker() || isOwner();
+
+      // Workers may create visits but:
+      // - workerId must match their own UID (prevents impersonation)
+      // - amount must be a non-negative integer within a sane ceiling
+      // - voided must be false (prevents logging an already-hidden visit)
+      allow create: if isOwner() ||
+        (isWorker() &&
+          request.resource.data.workerId == request.auth.uid &&
+          request.resource.data.voided == false &&
+          request.resource.data.amount is int &&
+          request.resource.data.amount >= 0 &&
+          request.resource.data.amount <= 100000);
+
       // Workers may update paid + paymentMethod only, with consistency rules.
       // All other field changes are owner-only.
       allow update: if isOwner() ||
@@ -34,7 +47,8 @@ service cloud.firestore {
       allow delete: if isOwner();
     }
 
-    // Customers — workers upsert on save, owner can read.
+    // ── Customers ────────────────────────────────────────────────────────────
+
     // Holds customer phone numbers, so writes require a real role claim
     // rather than merely being signed in. Deletes are owner-only.
     match /customers/{id} {
@@ -43,36 +57,50 @@ service cloud.firestore {
       allow delete: if isOwner();
     }
 
-    // Rates — workers read (to price washes), owner can edit
+    // ── Rates ────────────────────────────────────────────────────────────────
+
+    // Workers read (to price washes), owner can edit.
     match /rates/{id} {
       allow read: if isSignedIn();
       allow write: if isOwner();
     }
 
-    // Settings — owner only
+    // ── Settings ─────────────────────────────────────────────────────────────
+
+    // Owner only.
     match /settings/{id} {
       allow read, write: if isOwner();
     }
 
+    // ── Email tasks ───────────────────────────────────────────────────────────
+
     // Close-day email trigger. Only the owner dashboard sends this, and each
-    // document fans out a real email — previously any signed-in worker could
-    // create them in a loop.
+    // document fans out a real email — any signed-in worker must not be able
+    // to create them (would spam the owner's inbox).
+    // update/delete are false for client-side rules; the Admin SDK used by
+    // Cloud Functions bypasses these rules entirely.
     match /emailTasks/{id} {
       allow create: if isOwner();
       allow read: if isOwner();
       allow update, delete: if false;
     }
 
-    // Packages — workers read (to show package picker), owner can edit
+    // ── Packages ─────────────────────────────────────────────────────────────
+
+    // Workers read (to show package picker), owner can edit.
     match /packages/{id} {
       allow read: if isSignedIn();
       allow write: if isOwner();
     }
 
-    // Operator name registry — workers write their own doc, owner reads all
+    // ── Operator name registry ────────────────────────────────────────────────
+
+    // Workers write their own doc only; owner reads all.
+    // Require a real role claim (not just isSignedIn) so freshly created
+    // accounts with no role can't pollute the users collection.
     match /users/{uid} {
       allow read: if isOwner();
-      allow create, update: if isSignedIn() && request.auth.uid == uid;
+      allow create, update: if (isWorker() || isOwner()) && request.auth.uid == uid;
     }
   }
 }

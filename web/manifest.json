@@ -1,7 +1,7 @@
 {
   "name": "Luxury Car Care",
   "short_name": "Car Care",
-  "start_url": ".",
+  "start_url": "/",
   "display": "standalone",
   "background_color": "#0F0E0D",
   "theme_color": "#C9952A",

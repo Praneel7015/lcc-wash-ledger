@@ -12,12 +12,33 @@ import '../../providers/package_labels_provider.dart';
 import '../../services/providers.dart';
 import '../../widgets/payment_method_dialog.dart';
 
-class VisitDetailScreen extends ConsumerWidget {
+class VisitDetailScreen extends ConsumerStatefulWidget {
   final String visitId;
   const VisitDetailScreen({super.key, required this.visitId});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<VisitDetailScreen> createState() => _VisitDetailScreenState();
+}
+
+class _VisitDetailScreenState extends ConsumerState<VisitDetailScreen> {
+  // Future stored once in initState so rebuilds (theme change, parent rebuild)
+  // don't create a new Future, re-issuing two Firestore reads and flashing
+  // the loading spinner every time.
+  late final Future<(Visit?, String?)> _dataFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    final svc = ref.read(firestoreServiceProvider);
+    _dataFuture = svc.getVisit(widget.visitId).then((visit) async {
+      if (visit == null || visit.workerId == null) return (visit, null);
+      final names = await svc.fetchOperatorNames({visit.workerId!});
+      return (visit, names[visit.workerId!]);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final svc = ref.watch(firestoreServiceProvider);
     return Scaffold(
       backgroundColor: context.wash.bg,
@@ -25,11 +46,7 @@ class VisitDetailScreen extends ConsumerWidget {
         title: const Text('Wash Record Details'),
       ),
       body: FutureBuilder<(Visit?, String?)>(
-        future: svc.getVisit(visitId).then((visit) async {
-          if (visit?.workerId == null) return (visit, null);
-          final names = await svc.fetchOperatorNames({visit!.workerId!});
-          return (visit, names[visit.workerId!]);
-        }),
+        future: _dataFuture,
         builder: (ctx, snap) {
           if (snap.connectionState == ConnectionState.waiting) {
             return Center(
@@ -83,13 +100,19 @@ class _VisitDetailState extends ConsumerState<_VisitDetail> {
     final newPaid = !_visit.paid;
 
     if (newPaid) {
+      // Guard must be set BEFORE the dialog await. If set after, a second tap
+      // delivered before the dialog resolves sees _updatingPaid==false and
+      // issues a concurrent Firestore write.
+      setState(() => _updatingPaid = true);
       final method = await showPaymentMethodDialog(
         context,
         subtitle: 'Plate ${_visit.plate} — ₹${_visit.amount}',
       );
-      if (method == null) return;
+      if (method == null) {
+        if (mounted) setState(() => _updatingPaid = false);
+        return;
+      }
 
-      setState(() => _updatingPaid = true);
       try {
         await widget.svc.updateVisit(_visit.id, {
           'paid': true,
@@ -105,7 +128,7 @@ class _VisitDetailState extends ConsumerState<_VisitDetail> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Could not update payment: $e'),
+              content: const Text('Could not update payment. Try again.'),
               backgroundColor: context.wash.danger,
             ),
           );
@@ -129,17 +152,17 @@ class _VisitDetailState extends ConsumerState<_VisitDetail> {
             ));
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Could not update payment: $e'),
-            backgroundColor: context.wash.danger,
-          ),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Could not update payment. Try again.'),
+              backgroundColor: context.wash.danger,
+            ),
+          );
+        }
+      } finally {
+        if (mounted) setState(() => _updatingPaid = false);
       }
-    } finally {
-      if (mounted) setState(() => _updatingPaid = false);
-    }
   }
 
   String _paidBadgeLabel() {
@@ -431,26 +454,29 @@ class _VisitDetailState extends ConsumerState<_VisitDetail> {
   }
 
   Future<void> _confirmVoid(BuildContext context) async {
+    final dangerColor = context.wash.danger;
+    final surfaceCard = context.wash.surfaceCard;
+    final textSecondary = context.wash.textSecondary;
     final ok = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        backgroundColor: context.wash.surfaceCard,
+        backgroundColor: surfaceCard,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Text('Void this visit?'),
         content: Text(
           'This record will be excluded from revenue calculations and daily reports. High-resolution photos will be retained for dispute verification.',
-          style: TextStyle(color: context.wash.textSecondary, height: 1.4),
+          style: TextStyle(color: textSecondary, height: 1.4),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
             child: Text('Cancel',
-                style: TextStyle(color: context.wash.textSecondary)),
+                style: TextStyle(color: textSecondary)),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
             style: ElevatedButton.styleFrom(
-              backgroundColor: context.wash.danger,
+              backgroundColor: dangerColor,
               foregroundColor: Colors.white,
             ),
             child: const Text('Confirm Void'),
@@ -459,8 +485,19 @@ class _VisitDetailState extends ConsumerState<_VisitDetail> {
       ),
     );
     if (ok == true) {
-      await widget.svc.voidVisit(_visit.id);
-      if (context.mounted) Navigator.of(context).pop();
+      try {
+        await widget.svc.voidVisit(_visit.id);
+        if (mounted) Navigator.of(this.context).pop(); // ignore: use_build_context_synchronously
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(this.context).showSnackBar( // ignore: use_build_context_synchronously
+            SnackBar(
+              content: const Text('Could not void record. Check connection and try again.'),
+              backgroundColor: dangerColor,
+            ),
+          );
+        }
+      }
     }
   }
 }

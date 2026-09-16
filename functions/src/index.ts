@@ -297,7 +297,8 @@ async function sendDayEmail(dayStart: Date, dayEnd: Date): Promise<void> {
 
   if (ownerEmails.length === 0) {
     logger.warn("No owner email(s) in settings — skipping day email.");
-    return;
+    // Throw so manualDayClose marks the task as 'error' rather than 'done'.
+    throw new Error("No owner email configured in settings");
   }
 
   const summary = await computeSummary(dayStart, dayEnd);
@@ -319,7 +320,9 @@ async function sendDayEmail(dayStart: Date, dayEnd: Date): Promise<void> {
   const apiKey = process.env.RESEND_API_KEY ?? "";
   if (!apiKey) {
     logger.error("RESEND_API_KEY not set — cannot send email.");
-    return;
+    // Throw so the caller (manualDayClose) marks the task as 'error' rather
+    // than silently marking it 'done' with no email sent.
+    throw new Error("RESEND_API_KEY not configured");
   }
 
   // Build CSV attachment from today's visits
@@ -389,12 +392,20 @@ function istMidnightToday(): Date {
   );
 }
 
-// ── Scheduled: runs at 9:30 PM IST every day ─────────────────────────────────
+/** End of the current IST calendar day (midnight of the next day). */
+function istEndOfToday(): Date {
+  const midnight = istMidnightToday();
+  return new Date(midnight.getTime() + 24 * 60 * 60 * 1000);
+}
+
+// ── Scheduled: runs at 11:59 PM IST every day ─────────────────────────────────
+// Previously ran at 9:30 PM, which permanently excluded all washes logged
+// between 9:30 PM and midnight from every daily report.
 
 export const scheduledDayClose = onSchedule(
-  { schedule: "30 21 * * *", timeZone: "Asia/Kolkata" },
+  { schedule: "59 23 * * *", timeZone: "Asia/Kolkata" },
   async () => {
-    await sendDayEmail(istMidnightToday(), new Date());
+    await sendDayEmail(istMidnightToday(), istEndOfToday());
   }
 );
 
@@ -406,7 +417,9 @@ export const manualDayClose = onDocumentCreated("emailTasks/{id}", async (event)
   const data = snap.data();
   if (data.type !== "closeDay") return;
   try {
-    await sendDayEmail(istMidnightToday(), new Date());
+    // Use end-of-day as the range end so washes logged after the owner taps
+    // "Close day" (but before midnight) are still included in the report.
+    await sendDayEmail(istMidnightToday(), istEndOfToday());
     await snap.ref.update({ status: "done" });
   } catch (err) {
     await snap.ref.update({ status: "error", error: String(err) });
