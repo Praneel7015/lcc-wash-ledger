@@ -143,6 +143,35 @@ class FirestoreService {
     });
   }
 
+  /// Backfills the `other` vehicle type onto all non-bike packages.
+  ///
+  /// When the `other` vehicle type was introduced in v1.2.1 the existing package
+  /// documents in Firestore were NOT updated, so selecting "Other" on the type/
+  /// package screen showed "No packages available" — the filtered list was empty.
+  ///
+  /// This migration is idempotent: it skips documents that already contain
+  /// `'other'` and is a no-op once all packages are up to date.
+  Future<void> migrateOtherVehicleType() async {
+    final snap = await _db.collection('packages').get();
+    final batch = _db.batch();
+    var changed = false;
+    for (final doc in snap.docs) {
+      final data = doc.data();
+      final types = List<String>.from(data['vehicleTypes'] ?? []);
+      // Bike-only packages must NOT be made available for other vehicle types.
+      if (types.contains(VehicleType.bike) && types.length == 1) continue;
+      if (types.contains(VehicleType.other)) continue;
+      batch.update(doc.reference, {
+        'vehicleTypes': FieldValue.arrayUnion([VehicleType.other]),
+      });
+      changed = true;
+    }
+    if (changed) {
+      await batch.commit();
+      debugPrint('migrateOtherVehicleType: backfilled "other" onto packages.');
+    }
+  }
+
   Future<void> seedDefaultRates() async {
     final batch = _db.batch();
     defaultRates.forEach((key, amount) {

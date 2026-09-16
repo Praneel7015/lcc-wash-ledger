@@ -101,6 +101,9 @@ class _RatesTabState extends ConsumerState<_RatesTab> {
     setState(() => _loading = true);
     try {
       final svc = ref.read(firestoreServiceProvider);
+      // Backfill the 'other' vehicle type onto pre-existing packages that
+      // were written before v1.2.1 (idempotent, safe to call every load).
+      await svc.migrateOtherVehicleType();
       final results = await Future.wait([svc.loadRates(), svc.loadPackages()]);
       final rates = results[0] as Map<String, int>;
       final packages = results[1] as List<Map<String, dynamic>>;

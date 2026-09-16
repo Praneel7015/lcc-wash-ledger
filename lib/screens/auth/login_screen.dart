@@ -88,7 +88,8 @@ class _LoginScreenState extends State<LoginScreen> {
       }
       setState(() => _error = msg);
     } catch (e) {
-      setState(() => _error = e.toString());
+      setState(() => _error = 'An unexpected error occurred. Please try again.');
+      debugPrint('Login error: $e');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -337,15 +338,15 @@ class _LoginScreenState extends State<LoginScreen> {
                                       color: context.wash.bg,
                                     ),
                                   )
-                                : Row(
+                                : const Row(
                                     mainAxisAlignment:
                                         MainAxisAlignment.center,
                                     children: [
                                       Text(kIsWeb
                                           ? 'Access Dashboard'
                                           : 'Sign In'),
-                                      const SizedBox(width: 8),
-                                      const Icon(
+                                      SizedBox(width: 8),
+                                      Icon(
                                           Icons.arrow_forward_rounded,
                                           size: 18),
                                     ],
