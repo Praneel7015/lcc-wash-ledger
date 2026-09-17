@@ -46,14 +46,12 @@ android {
     buildTypes {
         release {
             signingConfig signingConfigs.debug
-            // Enable R8 minification and resource shrinking for release builds.
-            // This significantly reduces APK size (typically 40-60% smaller).
-            // Flutter's own flutter_tools passes -keep rules via AAR consumer
-            // proguard files, so most libraries work without extra rules.
-            // Custom rules for this project are in proguard-rules.pro.
-            minifyEnabled true
-            shrinkResources true
-            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            // R8 minification is OFF for now. Enabling it previously broke
+            // ML Kit OCR (missing classes) and is a leading suspect for
+            // Storage / image-compress failures on release APKs. Re-enable
+            // only after ProGuard keep rules are validated end-to-end.
+            minifyEnabled false
+            shrinkResources false
         }
     }
 }

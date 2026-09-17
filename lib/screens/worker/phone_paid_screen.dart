@@ -82,6 +82,34 @@ class _PhonePaidScreenState extends ConsumerState<PhonePaidScreen> {
       }
     }
 
+    // ── Step 1: Upload photos first ───────────────────────────────────────────
+    // Uploading before the Firestore write means the create document can
+    // include the URLs in one shot — workers need only `create` permission,
+    // not a separate photo-URL update (which was blocked by older rules).
+    String? plateUrl;
+    String? frontUrl;
+    String? photoError;
+    try {
+      final results = await Future.wait<String>([
+        storage.uploadPhoto(
+          bytes: Uint8List.fromList(widget.draft.plateImageBytes),
+          folder: 'plates',
+          plate: widget.draft.plate,
+        ),
+        storage.uploadPhoto(
+          bytes: Uint8List.fromList(widget.draft.frontImageBytes),
+          folder: 'fronts',
+          plate: widget.draft.plate,
+        ),
+      ]);
+      plateUrl = results[0];
+      frontUrl = results[1];
+    } catch (e) {
+      photoError = e.toString();
+      debugPrint('photo upload error: $e');
+    }
+
+    // ── Step 2: Write the visit (with photo URLs when available) ──────────────
     final visit = Visit(
       id: _visitId,
       plate: widget.draft.plate,
@@ -93,12 +121,10 @@ class _PhonePaidScreenState extends ConsumerState<PhonePaidScreen> {
       paymentMethod: _paid ? _paymentMethod : null,
       workerId: uid,
       createdAt: DateTime.now(), // only used locally; server ts is written
-      platePhotoUrl: null,
-      frontPhotoUrl: null,
+      platePhotoUrl: plateUrl,
+      frontPhotoUrl: frontUrl,
     );
 
-    // ── Step 1: Write the visit record (no photos yet) ────────────────────────
-    // Uses FieldValue.serverTimestamp() — idempotent on retry via transaction.
     try {
       await svc.saveVisitCreate(visit);
     } catch (e) {
@@ -115,27 +141,15 @@ class _PhonePaidScreenState extends ConsumerState<PhonePaidScreen> {
       return;
     }
 
-    // ── Steps 2 & 3: Upload photos then patch URLs ────────────────────────────
-    // The visit record already exists at this point. A failure here does NOT
-    // lose the wash — the owner can see it in the admin panel without photos.
-    // We show success to the worker regardless, then log the photo error.
-    try {
-      final results = await Future.wait<String>([
-        storage.uploadPhoto(
-          bytes: Uint8List.fromList(widget.draft.plateImageBytes),
-          folder: 'plates',
-          plate: widget.draft.plate,
-        ),
-        storage.uploadPhoto(
-          bytes: Uint8List.fromList(widget.draft.frontImageBytes),
-          folder: 'fronts',
-          plate: widget.draft.plate,
-        ),
-      ]);
-      await svc.updateVisitPhotos(_visitId, results[0], results[1]);
-    } catch (e) {
-      // Photos failed — the wash record is still saved. Log and continue.
-      debugPrint('photo upload/patch error (non-fatal): $e');
+    // ── Step 3: On retry, the create is a no-op if the doc already exists.
+    // Patch photo URLs so a second attempt can attach photos that failed
+    // the first time.
+    if (plateUrl != null && frontUrl != null) {
+      try {
+        await svc.updateVisitPhotos(_visitId, plateUrl, frontUrl);
+      } catch (e) {
+        debugPrint('updateVisitPhotos (retry patch) error: $e');
+      }
     }
 
     // upsertCustomer is non-critical.
@@ -145,10 +159,22 @@ class _PhonePaidScreenState extends ConsumerState<PhonePaidScreen> {
       debugPrint('upsertCustomer failed (non-fatal): $e');
     }
 
-    if (mounted) {
-      setState(() => _saving = false);
-      _showSuccessAndReset();
+    if (!mounted) return;
+    setState(() => _saving = false);
+
+    if (photoError != null) {
+      // Wash is saved — tell the worker clearly that only photos failed.
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text(
+            'Wash saved, but photos failed to upload. Check connection and try again.',
+          ),
+          backgroundColor: context.wash.danger,
+          duration: const Duration(seconds: 5),
+        ),
+      );
     }
+    _showSuccessAndReset();
   }
 
   void _showSuccessAndReset() {
