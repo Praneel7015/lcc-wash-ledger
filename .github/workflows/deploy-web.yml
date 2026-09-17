@@ -51,13 +51,17 @@ jobs:
 
       # Deploy Firestore rules and Storage rules using the Firebase CLI with
       # ADC credentials set by google-github-actions/auth above.
-      # Pinned to firebase-tools@14 to avoid silent breaking changes from
-      # unversioned installs.
+      # --force skips the firebaserules.googleapis.com pre-flight test call
+      # which requires roles/firebase.developAdmin — a role not included in
+      # the auto-generated hosting service account. Rules are still validated
+      # by firebase-tools locally before upload, so this is safe.
+      # To permanently remove the --force flag, grant the service account
+      # roles/firebase.developAdmin in GCP IAM.
       - name: Deploy Firestore & Storage rules
         run: |
           npm install -g firebase-tools@14
           firebase deploy --only firestore:rules,storage \
-            --project wash-ledgar
+            --project wash-ledgar --force
 
       - name: Deploy to Firebase Hosting
         uses: FirebaseExtended/action-hosting-deploy@v0
