@@ -52,6 +52,12 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2"/>
+
+        <!-- Download the Latin OCR model at install time via Google Play
+             Services so plate recognition works offline on first launch. -->
+        <meta-data
+            android:name="com.google.mlkit.vision.DEPENDENCIES"
+            android:value="ocr"/>
     </application>
 
     <queries>

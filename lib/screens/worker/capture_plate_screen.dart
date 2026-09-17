@@ -1,8 +1,7 @@
 // Screen 1: capture photo of the vehicle's front (plate visible).
 // Flow: take/upload photo → preview with retake/proceed → OCR → confirm screen.
 
-import 'dart:typed_data';
-
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -56,17 +55,31 @@ class _CapturePlateScreenState extends ConsumerState<CapturePlateScreen> {
       _error = null;
     });
     var ocrText = '';
+    var ocrFailed = false;
     try {
       final ocr = ref.read(ocrServiceProvider);
       ocrText = await ocr.extractPlate(_previewBytes!);
-    } catch (_) {
+    } catch (e) {
       // OCR is best-effort. Carry on with an empty plate — the next screen
-      // lets the worker type it. (Previously this both showed an error and
-      // navigated away from it in the same frame.)
+      // lets the worker type it.
+      debugPrint('OCR extractPlate threw: $e');
       ocrText = '';
+      ocrFailed = true;
     }
     if (!mounted) return;
     setState(() => _processing = false);
+    if (ocrFailed || ocrText.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            ocrFailed
+                ? 'Could not read plate automatically — type it in.'
+                : 'Plate not detected — type it in if needed.',
+          ),
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
     await context.push('/worker/confirm-plate', extra: {
       'imageBytes': _previewBytes!.toList(),
       'ocrText': ocrText,
