@@ -18,7 +18,8 @@ service cloud.firestore {
     // ── Visits ───────────────────────────────────────────────────────────────
 
     match /visits/{id} {
-      allow read: if isSignedIn();
+      // Role required — claim-less accounts must not read PII.
+      allow read: if isWorker() || isOwner();
 
       // Workers may create visits but:
       // - workerId must match their own UID (prevents impersonation)
@@ -33,9 +34,8 @@ service cloud.firestore {
           request.resource.data.amount <= 100000);
 
       // Workers may update:
-      //   a) paid + paymentMethod only (with consistency rules), OR
-      //   b) platePhotoUrl + frontPhotoUrl only — but only on their own visits,
-      //      so a worker cannot overwrite another worker's photos.
+      //   a) paid + paymentMethod only on their own visits, OR
+      //   b) platePhotoUrl + frontPhotoUrl only on their own visits.
       // All other field changes are owner-only.
       allow update: if isOwner() ||
         (isWorker() &&
@@ -43,6 +43,7 @@ service cloud.firestore {
           request.resource.data.diff(resource.data).affectedKeys()
               .hasOnly(['platePhotoUrl', 'frontPhotoUrl'])) ||
         (isWorker() &&
+          resource.data.workerId == request.auth.uid &&
           request.resource.data.diff(resource.data).affectedKeys()
               .hasOnly(['paid', 'paymentMethod']) &&
           (

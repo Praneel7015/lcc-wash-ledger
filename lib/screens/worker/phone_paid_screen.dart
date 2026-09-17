@@ -88,7 +88,8 @@ class _PhonePaidScreenState extends ConsumerState<PhonePaidScreen> {
     // not a separate photo-URL update (which was blocked by older rules).
     String? plateUrl;
     String? frontUrl;
-    String? photoError;
+    var photosOk = false;
+    String? photoErrorCode;
     try {
       final results = await Future.wait<String>([
         storage.uploadPhoto(
@@ -104,8 +105,12 @@ class _PhonePaidScreenState extends ConsumerState<PhonePaidScreen> {
       ]);
       plateUrl = results[0];
       frontUrl = results[1];
+      photosOk = true;
+    } on FirebaseException catch (e) {
+      photoErrorCode = e.code;
+      debugPrint('photo upload FirebaseException: ${e.code} ${e.message}');
     } catch (e) {
-      photoError = e.toString();
+      photoErrorCode = 'unknown';
       debugPrint('photo upload error: $e');
     }
 
@@ -147,8 +152,14 @@ class _PhonePaidScreenState extends ConsumerState<PhonePaidScreen> {
     if (plateUrl != null && frontUrl != null) {
       try {
         await svc.updateVisitPhotos(_visitId, plateUrl, frontUrl);
+      } on FirebaseException catch (e) {
+        photosOk = false;
+        photoErrorCode ??= e.code;
+        debugPrint('updateVisitPhotos FirebaseException: ${e.code}');
       } catch (e) {
-        debugPrint('updateVisitPhotos (retry patch) error: $e');
+        photosOk = false;
+        photoErrorCode ??= 'patch-failed';
+        debugPrint('updateVisitPhotos error: $e');
       }
     }
 
@@ -162,22 +173,16 @@ class _PhonePaidScreenState extends ConsumerState<PhonePaidScreen> {
     if (!mounted) return;
     setState(() => _saving = false);
 
-    if (photoError != null) {
-      // Wash is saved — tell the worker clearly that only photos failed.
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text(
-            'Wash saved, but photos failed to upload. Check connection and try again.',
-          ),
-          backgroundColor: context.wash.danger,
-          duration: const Duration(seconds: 5),
-        ),
-      );
-    }
-    _showSuccessAndReset();
+    _showSuccessAndReset(
+      photoWarning: !photosOk,
+      photoErrorCode: photoErrorCode,
+    );
   }
 
-  void _showSuccessAndReset() {
+  void _showSuccessAndReset({
+    bool photoWarning = false,
+    String? photoErrorCode,
+  }) {
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -197,10 +202,14 @@ class _PhonePaidScreenState extends ConsumerState<PhonePaidScreen> {
               width: 64,
               height: 64,
               decoration: BoxDecoration(
-                color: context.wash.success,
+                color: photoWarning ? context.wash.accent : context.wash.success,
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.check, color: Colors.white, size: 36),
+              child: Icon(
+                photoWarning ? Icons.warning_amber_rounded : Icons.check,
+                color: Colors.white,
+                size: 36,
+              ),
             ),
             const SizedBox(height: 20),
             Text(
@@ -212,6 +221,20 @@ class _PhonePaidScreenState extends ConsumerState<PhonePaidScreen> {
               '${widget.draft.plate}  ·  ₹${widget.draft.amount}',
               style: TextStyle(color: context.wash.textSecondary),
             ),
+            if (photoWarning) ...[
+              const SizedBox(height: 12),
+              Text(
+                photoErrorCode == null
+                    ? 'Photos did not upload. The wash is saved — check connection / billing and try the next wash.'
+                    : 'Photos did not upload ($photoErrorCode). The wash is saved — check connection / billing.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: context.wash.danger,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
             const SizedBox(height: 24),
             ElevatedButton(
               onPressed: () {

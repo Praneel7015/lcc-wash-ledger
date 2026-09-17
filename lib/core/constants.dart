@@ -2,7 +2,7 @@
 
 /// Displayed in the UI so you can confirm which APK is installed.
 /// Keep in sync with the git release tag.
-const String kAppVersion = '1.5.2';
+const String kAppVersion = '1.5.3';
 
 class VehicleType {
   static const String hatchSedan = 'hatch_sedan';

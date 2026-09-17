@@ -23,21 +23,16 @@ service firebase.storage {
         ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
     }
 
-    // Any authenticated user (worker or owner) can read all photos.
-    match /{allPaths=**} {
-      allow read: if isSignedIn();
-    }
-
-    // Workers AND owners may upload plate photos.
-    // `allow write` (create + overwrite) so a retry after a partial upload
-    // is not blocked by `create`-only rules.
+    // Staff-only photo paths — no catch-all read for claim-less accounts.
     match /plates/{plate}/{filename} {
+      allow read: if isStaff();
       allow write: if isStaff()
         && request.resource.size < 8 * 1024 * 1024
         && isAllowedImage();
     }
 
     match /fronts/{plate}/{filename} {
+      allow read: if isStaff();
       allow write: if isStaff()
         && request.resource.size < 8 * 1024 * 1024
         && isAllowedImage();

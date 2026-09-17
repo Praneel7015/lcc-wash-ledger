@@ -592,9 +592,9 @@ class _PhotoCardState extends State<_PhotoCard> {
       final encodedPath = uri.path.substring(oIndex + 3);
       final storagePath = Uri.decodeComponent(encodedPath);
 
-      final freshUrl = await FirebaseStorage.instance
-          .ref(storagePath)
-          .getDownloadURL();
+      final freshUrl = await FirebaseStorage.instanceFor(
+        bucket: 'wash-ledgar.firebasestorage.app',
+      ).ref(storagePath).getDownloadURL();
 
       // Persist the fresh URL to Firestore so this card never needs to
       // refresh again.

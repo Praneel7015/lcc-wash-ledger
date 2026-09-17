@@ -12,6 +12,7 @@
 // router's redirect re-evaluates without tearing down and recreating the router
 // — which would reset the navigation stack mid-flow.
 
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -53,10 +54,10 @@ String? _requireExtra(GoRouterState state) =>
 /// the entire router to be replaced, resetting the navigation stack mid-flow.
 class _RouterNotifier extends ChangeNotifier {
   _RouterNotifier(this._ref) {
-    // Listen to both providers and notify the router whenever either changes.
+    // Auth/role only — do NOT listen to washSession here. That would refresh
+    // redirects on every "New wash" without needing a new GoRouter instance.
     _ref.listen(authStateProvider, (_, __) => notifyListeners());
     _ref.listen(userRoleProvider, (_, __) => notifyListeners());
-    _ref.listen(washSessionProvider, (_, __) => notifyListeners());
   }
 
   final Ref _ref;
@@ -78,14 +79,23 @@ class _RouterNotifier extends ChangeNotifier {
     // screen; this redirect re-runs as soon as the claim resolves.
     if (roleAsync.isLoading) return null;
 
-    final isOwner = roleAsync.valueOrNull == UserRole.owner;
+    // No role claim yet / missing — do not pretend the user is a worker.
+    final role = roleAsync.valueOrNull;
+    if (role == null) {
+      if (location == '/no-role') return null;
+      return '/no-role';
+    }
+
+    final isOwner = role == UserRole.owner;
     final home = isOwner ? _ownerHome : _workerHome;
 
-    if (isLoggingIn) return home;
+    if (isLoggingIn || location == '/no-role') return home;
 
     // Owner-only area. Workers are sent back to their own flow.
     if (location.startsWith('/owner') && !isOwner) return _workerHome;
 
+    // Workers should not use owner routes; owners can still open worker flow
+    // only if they navigate there deliberately (no hard block).
     return null;
   }
 }
@@ -94,10 +104,10 @@ class _RouterNotifier extends ChangeNotifier {
 
 /// A [GoRouter] that is created once and reuses a [ChangeNotifier] for
 /// redirect re-evaluation, so navigation state is never torn down on auth
-/// changes.
+/// changes. washSession is NOT watched here — that used to recreate GoRouter
+/// (and flash /login) on every completed wash.
 final routerProvider = Provider<GoRouter>((ref) {
   final notifier = _RouterNotifier(ref);
-  final washSession = ref.watch(washSessionProvider);
 
   final router = GoRouter(
     initialLocation: '/login',
@@ -109,13 +119,15 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/login',
         builder: (context, state) => const LoginScreen(),
       ),
+      GoRoute(
+        path: '/no-role',
+        builder: (context, state) => const _NoRoleScreen(),
+      ),
 
       // ── Worker flow (Android) ──────────────────────────────────────
       GoRoute(
         path: '/worker/capture-plate',
-        builder: (context, state) => CapturePlateScreen(
-          key: ValueKey('capture-plate-$washSession'),
-        ),
+        builder: (context, state) => const _CapturePlateRoute(),
       ),
       GoRoute(
         path: '/worker/today',
@@ -225,6 +237,58 @@ class _RouteNotFound extends ConsumerWidget {
                       context.go(isOwner ? _ownerHome : _workerHome),
                   child: const Text('Go back'),
                 ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Remounts [CapturePlateScreen] when washSession increments without recreating
+/// the entire [GoRouter] (which used to flash /login on every new wash).
+class _CapturePlateRoute extends ConsumerWidget {
+  const _CapturePlateRoute();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final session = ref.watch(washSessionProvider);
+    return CapturePlateScreen(key: ValueKey('capture-plate-$session'));
+  }
+}
+
+/// Shown when the user is signed in but has no custom `role` claim.
+class _NoRoleScreen extends StatelessWidget {
+  const _NoRoleScreen();
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.lock_person_outlined, size: 48),
+              const SizedBox(height: 16),
+              Text(
+                'Account not set up',
+                style: Theme.of(context).textTheme.headlineMedium,
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'This login has no worker/owner role yet. Ask the owner to assign a role, then sign in again.',
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 24),
+              ElevatedButton(
+                onPressed: () async {
+                  await FirebaseAuth.instance.signOut();
+                  if (context.mounted) context.go('/login');
+                },
+                child: const Text('Sign out'),
               ),
             ],
           ),

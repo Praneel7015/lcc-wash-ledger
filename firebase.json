@@ -1,1 +1,65 @@
-{"firestore":{"rules":"firestore.rules","indexes":"firestore.indexes.json"},"functions":[{"source":"functions","codebase":"default","ignore":["node_modules",".git","firebase-debug.log","firebase-debug.*.log","*.local"]}],"storage":{"bucket":"wash-ledgar.firebasestorage.app","rules":"storage.rules"},"hosting":{"public":"build/web","ignore":["firebase.json","**/.*","**/node_modules/**"],"rewrites":[{"source":"**","destination":"/index.html"}]},"flutter":{"platforms":{"android":{"default":{"projectId":"wash-ledgar","appId":"1:570787286259:android:fecbe479b0ec612da57b86","fileOutput":"android/app/google-services.json"}},"dart":{"lib/firebase_options.dart":{"projectId":"wash-ledgar","configurations":{"android":"1:570787286259:android:fecbe479b0ec612da57b86","web":"1:570787286259:web:7bc31c433c501063a57b86"}}}}}}
+{
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  },
+  "functions": [
+    {
+      "source": "functions",
+      "codebase": "default",
+      "ignore": [
+        "node_modules",
+        ".git",
+        "firebase-debug.log",
+        "firebase-debug.*.log",
+        "*.local",
+        "serviceAccountKey.json",
+        "*.env",
+        ".env",
+        ".env.*",
+        "set-roles.js",
+        "clear-test-data.js",
+        "seed-rates.js",
+        "_diag_*.js"
+      ]
+    }
+  ],
+  "storage": {
+    "bucket": "wash-ledgar.firebasestorage.app",
+    "rules": "storage.rules"
+  },
+  "hosting": {
+    "public": "build/web",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
+    ]
+  },
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "wash-ledgar",
+          "appId": "1:570787286259:android:fecbe479b0ec612da57b86",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "wash-ledgar",
+          "configurations": {
+            "android": "1:570787286259:android:fecbe479b0ec612da57b86",
+            "web": "1:570787286259:web:7bc31c433c501063a57b86"
+          }
+        }
+      }
+    }
+  }
+}
