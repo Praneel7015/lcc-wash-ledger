@@ -429,7 +429,7 @@ export const manualDayClose = onDocumentCreated("emailTasks/{id}", async (event)
   }
 });
 
-// ── Scheduled: delete photos older than 90 days ───────────────────────────────
+// ── Scheduled: delete photos older than 180 days ──────────────────────────────
 //
 // Keeps Firebase Storage within the 5 GB free tier.
 // Runs at 2:00 AM IST daily (low-traffic window, after the day-close email).
@@ -442,7 +442,7 @@ export const manualDayClose = onDocumentCreated("emailTasks/{id}", async (event)
 // on the first run, then ~50 reads/writes per day thereafter (one day's worth
 // of visits aging out). Well within the 50K reads / 20K writes daily free limit.
 
-const PHOTO_RETENTION_DAYS = 90;
+const PHOTO_RETENTION_DAYS = 180;
 
 export const cleanupOldPhotos = onSchedule(
   { schedule: "0 2 * * *", timeZone: "Asia/Kolkata" },

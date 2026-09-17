@@ -133,8 +133,8 @@ Map<String, int> get defaultRates => {
 String rateKey(String vehicleType, String packageId) =>
     '${vehicleType}__$packageId';
 
-// Photo retention: 90 days
-const int photoRetentionDays = 90;
+// Photo retention: 180 days
+const int photoRetentionDays = 180;
 
 // ── Payment method ───────────────────────────────────────────────────────────
 
