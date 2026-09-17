@@ -68,45 +68,58 @@ class _PhonePaidScreenState extends ConsumerState<PhonePaidScreen> {
     }
 
     setState(() => _saving = true);
-    try {
-      final svc = ref.read(firestoreServiceProvider);
-      final storage = ref.read(storageServiceProvider);
-      final fbUser = FirebaseAuth.instance.currentUser;
-      final uid = fbUser?.uid;
 
-      // Keep the operator name in Firestore so reports can resolve UID → name.
-      if (uid != null) {
-        final displayName = fbUser?.displayName?.trim();
-        if (displayName != null && displayName.isNotEmpty) {
-          unawaited(svc.upsertOperator(uid, displayName));
-        }
+    final svc = ref.read(firestoreServiceProvider);
+    final storage = ref.read(storageServiceProvider);
+    final fbUser = FirebaseAuth.instance.currentUser;
+    final uid = fbUser?.uid;
+
+    // Keep the operator name in Firestore so reports can resolve UID → name.
+    if (uid != null) {
+      final displayName = fbUser?.displayName?.trim();
+      if (displayName != null && displayName.isNotEmpty) {
+        unawaited(svc.upsertOperator(uid, displayName));
       }
+    }
 
-      // Step 1: Write the visit document first (no photo URLs yet).
-      //   - Uses FieldValue.serverTimestamp() so createdAt is authoritative
-      //     even if the device clock is wrong or in the wrong timezone.
-      //   - Idempotent: the transaction inside saveVisitCreate is a no-op if
-      //     the same _visitId was already written (retry safety).
-      final visit = Visit(
-        id: _visitId,
-        plate: widget.draft.plate,
-        phone: phone.isEmpty ? null : phone,
-        vehicleType: widget.draft.vehicleType,
-        packageId: widget.draft.packageId,
-        amount: widget.draft.amount,
-        paid: _paid,
-        paymentMethod: _paid ? _paymentMethod : null,
-        workerId: uid,
-        createdAt: DateTime.now(), // only used locally; server ts is written
-        platePhotoUrl: null,
-        frontPhotoUrl: null,
-      );
+    final visit = Visit(
+      id: _visitId,
+      plate: widget.draft.plate,
+      phone: phone.isEmpty ? null : phone,
+      vehicleType: widget.draft.vehicleType,
+      packageId: widget.draft.packageId,
+      amount: widget.draft.amount,
+      paid: _paid,
+      paymentMethod: _paid ? _paymentMethod : null,
+      workerId: uid,
+      createdAt: DateTime.now(), // only used locally; server ts is written
+      platePhotoUrl: null,
+      frontPhotoUrl: null,
+    );
+
+    // ── Step 1: Write the visit record (no photos yet) ────────────────────────
+    // Uses FieldValue.serverTimestamp() — idempotent on retry via transaction.
+    try {
       await svc.saveVisitCreate(visit);
+    } catch (e) {
+      debugPrint('saveVisitCreate error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Could not save wash. Check connection and try again.'),
+            backgroundColor: context.wash.danger,
+          ),
+        );
+        setState(() => _saving = false);
+      }
+      return;
+    }
 
-      // Step 2: Upload both photos in parallel.
-      //   - If this fails the visit document already exists with null URLs.
-      //     The owner can see it and add photos manually if needed, but the
-      //     wash record is never lost due to a network drop mid-upload.
+    // ── Steps 2 & 3: Upload photos then patch URLs ────────────────────────────
+    // The visit record already exists at this point. A failure here does NOT
+    // lose the wash — the owner can see it in the admin panel without photos.
+    // We show success to the worker regardless, then log the photo error.
+    try {
       final results = await Future.wait<String>([
         storage.uploadPhoto(
           bytes: Uint8List.fromList(widget.draft.plateImageBytes),
@@ -119,32 +132,22 @@ class _PhonePaidScreenState extends ConsumerState<PhonePaidScreen> {
           plate: widget.draft.plate,
         ),
       ]);
-
-      // Step 3: Patch the photo URLs onto the already-saved document.
       await svc.updateVisitPhotos(_visitId, results[0], results[1]);
-      // upsertCustomer is non-critical — a failure must not abort the
-      // already-saved wash record. Log and continue.
-      try {
-        await svc.upsertCustomer(widget.draft.plate, visit.phone);
-      } catch (e) {
-        debugPrint('upsertCustomer failed (non-fatal): $e');
-      }
-
-      if (mounted) {
-        _showSuccessAndReset();
-      }
     } catch (e) {
-      debugPrint('_save error: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Could not save wash. Check connection and try again.'),
-            backgroundColor: context.wash.danger,
-          ),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _saving = false);
+      // Photos failed — the wash record is still saved. Log and continue.
+      debugPrint('photo upload/patch error (non-fatal): $e');
+    }
+
+    // upsertCustomer is non-critical.
+    try {
+      await svc.upsertCustomer(widget.draft.plate, visit.phone);
+    } catch (e) {
+      debugPrint('upsertCustomer failed (non-fatal): $e');
+    }
+
+    if (mounted) {
+      setState(() => _saving = false);
+      _showSuccessAndReset();
     }
   }
 
