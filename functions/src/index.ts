@@ -1,5 +1,6 @@
 import { initializeApp } from "firebase-admin/app";
 import { getFirestore, Timestamp } from "firebase-admin/firestore";
+import { getStorage } from "firebase-admin/storage";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { onDocumentCreated } from "firebase-functions/v2/firestore";
 import { logger } from "firebase-functions";
@@ -427,3 +428,72 @@ export const manualDayClose = onDocumentCreated("emailTasks/{id}", async (event)
     throw err;
   }
 });
+
+// ── Scheduled: delete photos older than 90 days ───────────────────────────────
+//
+// Keeps Firebase Storage within the 5 GB free tier.
+// Runs at 2:00 AM IST daily (low-traffic window, after the day-close email).
+//
+// Strategy: query visits with createdAt < (now - 90 days), delete their Storage
+// objects, then null out the URL fields in Firestore so the UI shows a
+// "photo unavailable" placeholder instead of an expired broken URL.
+//
+// Free-tier cost: ~1 Firestore read per historical visit older than 90 days
+// on the first run, then ~50 reads/writes per day thereafter (one day's worth
+// of visits aging out). Well within the 50K reads / 20K writes daily free limit.
+
+const PHOTO_RETENTION_DAYS = 90;
+
+export const cleanupOldPhotos = onSchedule(
+  { schedule: "0 2 * * *", timeZone: "Asia/Kolkata" },
+  async () => {
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - PHOTO_RETENTION_DAYS);
+
+    const snap = await db
+      .collection("visits")
+      .where("createdAt", "<", Timestamp.fromDate(cutoff))
+      .where("voided", "==", false)
+      .get();
+
+    if (snap.empty) {
+      logger.info("cleanupOldPhotos: nothing to delete.");
+      return;
+    }
+
+    const bucket = getStorage().bucket();
+    let deleted = 0;
+    let errors = 0;
+
+    for (const doc of snap.docs) {
+      const data = doc.data();
+      const updates: Record<string, null> = {};
+
+      for (const field of ["platePhotoUrl", "frontPhotoUrl"] as const) {
+        const url: string | undefined = data[field];
+        if (!url) continue;
+        try {
+          // Extract the Storage path from the download URL and delete the file.
+          const uri = new URL(url);
+          const oIndex = uri.pathname.indexOf("/o/");
+          if (oIndex !== -1) {
+            const storagePath = decodeURIComponent(uri.pathname.substring(oIndex + 3));
+            await bucket.file(storagePath).delete({ ignoreNotFound: true });
+            deleted++;
+          }
+          updates[field] = null;
+        } catch (err) {
+          logger.warn(`cleanupOldPhotos: failed to delete ${field} for ${doc.id}`, err);
+          errors++;
+        }
+      }
+
+      // Null out the URL fields so the app shows "photo unavailable" cleanly.
+      if (Object.keys(updates).length > 0) {
+        await doc.ref.update(updates);
+      }
+    }
+
+    logger.info(`cleanupOldPhotos: deleted ${deleted} photos, ${errors} errors, ${snap.size} visits processed.`);
+  }
+);

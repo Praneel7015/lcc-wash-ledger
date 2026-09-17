@@ -1,6 +1,8 @@
 // Visit detail — shows plate photo, front photo, all fields, void button.
 // Clean desktop and mobile responsive layout.
 
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -297,12 +299,16 @@ class _VisitDetailState extends ConsumerState<_VisitDetail> {
                         url: visit.platePhotoUrl,
                         label: 'License Plate Capture',
                         icon: Icons.pin_outlined,
+                        visitId: visit.id,
+                        urlField: 'platePhotoUrl',
                       ),
                       const SizedBox(height: 12),
                       _PhotoCard(
                         url: visit.frontPhotoUrl,
                         label: 'Vehicle Front & Damage Proof',
                         icon: Icons.camera_front_rounded,
+                        visitId: visit.id,
+                        urlField: 'frontPhotoUrl',
                       ),
                     ],
                   );
@@ -314,6 +320,8 @@ class _VisitDetailState extends ConsumerState<_VisitDetail> {
                         url: visit.platePhotoUrl,
                         label: 'License Plate Capture',
                         icon: Icons.pin_outlined,
+                        visitId: visit.id,
+                        urlField: 'platePhotoUrl',
                       ),
                     ),
                     const SizedBox(width: 16),
@@ -322,6 +330,8 @@ class _VisitDetailState extends ConsumerState<_VisitDetail> {
                         url: visit.frontPhotoUrl,
                         label: 'Vehicle Front & Damage Proof',
                         icon: Icons.camera_front_rounded,
+                        visitId: visit.id,
+                        urlField: 'frontPhotoUrl',
                       ),
                     ),
                   ],
@@ -519,84 +529,148 @@ class _DetailRow extends StatelessWidget {
       );
 }
 
-class _PhotoCard extends StatelessWidget {
+/// Photo card that auto-refreshes the download URL when the stored token
+/// has expired (common for photos uploaded before the storage rules fix).
+///
+/// On [Image.network] error it calls [FirebaseStorage.ref().getDownloadURL()]
+/// using the stored URL's path, writes the fresh URL back to Firestore so
+/// future loads are instant, and retries the image.
+class _PhotoCard extends StatefulWidget {
   final String? url;
   final String label;
   final IconData icon;
+  /// Firestore visit ID — used to persist the refreshed URL so it only
+  /// needs to be refreshed once per photo.
+  final String? visitId;
+  /// Which field to update ('platePhotoUrl' or 'frontPhotoUrl').
+  final String? urlField;
 
   const _PhotoCard({
     this.url,
     required this.label,
     required this.icon,
+    this.visitId,
+    this.urlField,
   });
 
+  @override
+  State<_PhotoCard> createState() => _PhotoCardState();
+}
+
+class _PhotoCardState extends State<_PhotoCard> {
+  late String? _activeUrl;
+  bool _refreshing = false;
+  bool _failed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _activeUrl = widget.url;
+  }
+
+  /// Extracts the Storage object path from a Firebase download URL and
+  /// fetches a fresh download URL. Updates Firestore so the next load is
+  /// instant (avoids re-refreshing on every open).
+  Future<void> _refreshUrl() async {
+    if (_refreshing || _activeUrl == null || widget.visitId == null) {
+      setState(() => _failed = true);
+      return;
+    }
+    setState(() => _refreshing = true);
+    try {
+      // Extract the object path from the stored URL.
+      // Firebase download URLs look like:
+      //   https://firebasestorage.googleapis.com/v0/b/BUCKET/o/PATH?alt=media&token=TOKEN
+      // The PATH segment is URL-encoded, e.g. "plates%2FKA01%2Ffile.jpg".
+      final uri = Uri.parse(_activeUrl!);
+      // Path segment after /o/ is the encoded storage object path.
+      final oIndex = uri.path.indexOf('/o/');
+      if (oIndex == -1) {
+        setState(() { _refreshing = false; _failed = true; });
+        return;
+      }
+      final encodedPath = uri.path.substring(oIndex + 3);
+      final storagePath = Uri.decodeComponent(encodedPath);
+
+      final freshUrl = await FirebaseStorage.instance
+          .ref(storagePath)
+          .getDownloadURL();
+
+      // Persist the fresh URL to Firestore so this card never needs to
+      // refresh again.
+      if (widget.visitId != null && widget.urlField != null) {
+        await FirebaseFirestore.instance
+            .collection('visits')
+            .doc(widget.visitId)
+            .update({widget.urlField!: freshUrl});
+      }
+
+      if (mounted) setState(() { _activeUrl = freshUrl; _refreshing = false; });
+    } catch (_) {
+      if (mounted) setState(() { _refreshing = false; _failed = true; });
+    }
+  }
+
   void _openFullImage(BuildContext context) {
-    if (url == null) return;
-    final size = MediaQuery.of(context).size;
+    if (_activeUrl == null) return;
     showDialog<void>(
       context: context,
-      barrierColor: Colors.black.withValues(alpha: 0.92),
       builder: (ctx) => Dialog(
-        backgroundColor: context.wash.surfaceCard,
-        insetPadding: const EdgeInsets.all(16),
-        child: SizedBox(
-          width: size.width > 600 ? 560 : size.width - 32,
-          height: (size.height * 0.85).clamp(300.0, 720.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 12, 8, 0),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        label,
-                        style: TextStyle(
-                          color: context.wash.textPrimary,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
+        backgroundColor: Colors.black,
+        insetPadding: const EdgeInsets.all(8),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      widget.label,
+                      style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600),
                     ),
-                    IconButton(
-                      icon: const Icon(Icons.close_rounded),
-                      onPressed: () => Navigator.pop(ctx),
-                    ),
-                  ],
-                ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded),
+                    onPressed: () => Navigator.pop(ctx),
+                    color: Colors.white70,
+                  ),
+                ],
               ),
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: InteractiveViewer(
-                      minScale: 0.5,
-                      maxScale: 4,
-                      child: Image.network(
-                        url!,
-                        fit: BoxFit.contain,
-                        loadingBuilder: (_, child, progress) =>
-                            progress == null
-                                ? child
-                                : Center(
-                                    child: CircularProgressIndicator(
+            ),
+            Flexible(
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: InteractiveViewer(
+                    minScale: 0.5,
+                    maxScale: 4,
+                    child: Image.network(
+                      _activeUrl!,
+                      fit: BoxFit.contain,
+                      loadingBuilder: (_, child, progress) =>
+                          progress == null
+                              ? child
+                              : const Center(
+                                  child: CircularProgressIndicator(
                                       strokeWidth: 2,
-                                      color: context.wash.accent,
-                                    ),
-                                  ),
-                        errorBuilder: (_, __, ___) => Center(
-                          child: Icon(Icons.broken_image_rounded,
-                              color: context.wash.textMuted, size: 48),
-                        ),
+                                      color: Colors.white54)),
+                      errorBuilder: (_, __, ___) => const Center(
+                        child: Icon(Icons.broken_image_rounded,
+                            color: Colors.white38, size: 48),
                       ),
                     ),
                   ),
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -617,10 +691,10 @@ class _PhotoCard extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             child: Row(
               children: [
-                Icon(icon, size: 16, color: context.wash.accent),
+                Icon(widget.icon, size: 16, color: context.wash.accent),
                 const SizedBox(width: 8),
                 Text(
-                  label,
+                  widget.label,
                   style: TextStyle(
                     color: context.wash.textSecondary,
                     fontSize: 12,
@@ -633,14 +707,14 @@ class _PhotoCard extends StatelessWidget {
           ClipRRect(
             borderRadius:
                 const BorderRadius.vertical(bottom: Radius.circular(16)),
-            child: url != null
+            child: _activeUrl != null
                 ? GestureDetector(
                     onTap: () => _openFullImage(context),
                     child: Stack(
                       alignment: Alignment.center,
                       children: [
                         Image.network(
-                          url!,
+                          _activeUrl!,
                           height: 220,
                           width: double.infinity,
                           fit: BoxFit.cover,
@@ -657,14 +731,43 @@ class _PhotoCard extends StatelessWidget {
                                         ),
                                       ),
                                     ),
-                          errorBuilder: (_, __, ___) => Container(
-                            height: 220,
-                            color: context.wash.surfaceHigh,
-                            child: Center(
-                              child: Icon(Icons.broken_image_rounded,
-                                  color: context.wash.textMuted, size: 36),
-                            ),
-                          ),
+                          // On error: try to refresh the download token once.
+                          // If already refreshed or no visit ID, show broken icon.
+                          errorBuilder: (_, __, ___) {
+                            if (!_refreshing && !_failed) {
+                              // Schedule refresh after the current frame.
+                              WidgetsBinding.instance.addPostFrameCallback(
+                                  (_) => _refreshUrl());
+                            }
+                            return Container(
+                              height: 220,
+                              color: context.wash.surfaceHigh,
+                              child: Center(
+                                child: _refreshing
+                                    ? CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: context.wash.accent)
+                                    : _failed
+                                        ? Column(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Icon(Icons.broken_image_rounded,
+                                                  color: context.wash.textMuted,
+                                                  size: 36),
+                                              const SizedBox(height: 8),
+                                              Text('Photo unavailable',
+                                                  style: TextStyle(
+                                                      color: context
+                                                          .wash.textMuted,
+                                                      fontSize: 12)),
+                                            ],
+                                          )
+                                        : Icon(Icons.broken_image_rounded,
+                                            color: context.wash.textMuted,
+                                            size: 36),
+                              ),
+                            );
+                          },
                         ),
                         Positioned(
                           bottom: 8,
