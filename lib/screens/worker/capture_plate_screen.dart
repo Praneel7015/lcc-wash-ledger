@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../../core/constants.dart';
 import '../../core/theme.dart';
 import '../../services/providers.dart';
 import '../../widgets/worker_app_bar.dart';
@@ -23,6 +24,8 @@ class _CapturePlateScreenState extends ConsumerState<CapturePlateScreen> {
 
   // Once a photo is taken, stored here for preview
   Uint8List? _previewBytes;
+  /// Original camera/gallery file — preferred for ML Kit (avoids re-encode).
+  String? _imagePath;
   bool _processing = false;
   String? _error;
 
@@ -30,21 +33,23 @@ class _CapturePlateScreenState extends ConsumerState<CapturePlateScreen> {
     setState(() => _error = null);
     final xFile = await _picker.pickImage(
       source: source,
-      maxWidth: 1280,
-      maxHeight: 960,
-      imageQuality: 85,
+      maxWidth: 1920,
+      maxHeight: 1440,
+      imageQuality: 92,
     );
     if (xFile == null || !mounted) return;
     final bytes = await xFile.readAsBytes();
     if (!mounted) return;
     setState(() {
       _previewBytes = bytes;
+      _imagePath = xFile.path;
       _error = null;
     });
   }
 
   void _retake() => setState(() {
         _previewBytes = null;
+        _imagePath = null;
         _error = null;
       });
 
@@ -56,27 +61,45 @@ class _CapturePlateScreenState extends ConsumerState<CapturePlateScreen> {
     });
     var ocrText = '';
     var ocrFailed = false;
+    String? ocrErrorDetail;
     try {
-      final ocr = ref.read(ocrServiceProvider);
-      ocrText = await ocr.extractPlate(_previewBytes!);
+      if (kIsWeb) {
+        // ML Kit does not run in browsers — workers must type the plate
+        // (or use the Android APK for auto-read).
+        ocrText = '';
+      } else {
+        final ocr = ref.read(ocrServiceProvider);
+        ocrText = await ocr.extractPlate(
+          imagePath: _imagePath,
+          imageBytes: _previewBytes,
+        );
+      }
     } catch (e) {
-      // OCR is best-effort. Carry on with an empty plate — the next screen
-      // lets the worker type it.
       debugPrint('OCR extractPlate threw: $e');
       ocrText = '';
       ocrFailed = true;
+      ocrErrorDetail = e.runtimeType.toString();
     }
     if (!mounted) return;
     setState(() => _processing = false);
-    if (ocrFailed || ocrText.isEmpty) {
+    if (kIsWeb) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Auto plate-read only works in the Android app — type the plate here.',
+          ),
+          duration: Duration(seconds: 4),
+        ),
+      );
+    } else if (ocrFailed || ocrText.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
             ocrFailed
-                ? 'Could not read plate automatically — type it in.'
-                : 'Plate not detected — type it in if needed.',
+                ? 'OCR failed ($ocrErrorDetail) — type the plate. App v$kAppVersion'
+                : 'Plate not detected — type it in. App v$kAppVersion',
           ),
-          duration: const Duration(seconds: 3),
+          duration: const Duration(seconds: 4),
         ),
       );
     }
@@ -92,6 +115,7 @@ class _CapturePlateScreenState extends ConsumerState<CapturePlateScreen> {
       backgroundColor: context.wash.bg,
       appBar: WorkerAppBar(
         title: 'Plate photo',
+        subtitle: 'v$kAppVersion',
         extraActions: [
           IconButton(
             icon: const Icon(Icons.list_alt_rounded, size: 22),

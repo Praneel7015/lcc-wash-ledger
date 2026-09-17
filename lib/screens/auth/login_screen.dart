@@ -7,6 +7,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../core/constants.dart';
 import '../../core/theme.dart';
 import '../../widgets/theme_toggle_button.dart';
 
@@ -357,7 +358,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           // Footnote
                           Center(
                             child: Text(
-                              'Protected by Firebase Security',
+                              'Protected by Firebase Security · v$kAppVersion',
                               style: TextStyle(
                                 color:
                                     context.wash.textMuted.withValues(alpha: 0.8),
