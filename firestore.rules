@@ -32,9 +32,16 @@ service cloud.firestore {
           request.resource.data.amount >= 0 &&
           request.resource.data.amount <= 100000);
 
-      // Workers may update paid + paymentMethod only, with consistency rules.
+      // Workers may update:
+      //   a) paid + paymentMethod only (with consistency rules), OR
+      //   b) platePhotoUrl + frontPhotoUrl only — but only on their own visits,
+      //      so a worker cannot overwrite another worker's photos.
       // All other field changes are owner-only.
       allow update: if isOwner() ||
+        (isWorker() &&
+          resource.data.workerId == request.auth.uid &&
+          request.resource.data.diff(resource.data).affectedKeys()
+              .hasOnly(['platePhotoUrl', 'frontPhotoUrl'])) ||
         (isWorker() &&
           request.resource.data.diff(resource.data).affectedKeys()
               .hasOnly(['paid', 'paymentMethod']) &&

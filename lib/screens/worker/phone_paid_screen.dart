@@ -134,6 +134,7 @@ class _PhonePaidScreenState extends ConsumerState<PhonePaidScreen> {
         _showSuccessAndReset();
       }
     } catch (e) {
+      debugPrint('_save error: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
